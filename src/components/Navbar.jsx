@@ -66,7 +66,7 @@ export default function Navbar() {
           className="font-bold text-2xl tracking-[-0.03em] text-slate-900"
           style={{ fontFamily: "'Space Grotesk','Inter',sans-serif" }}
         >
-          Curtio<span className="text-indigo-600">.</span>
+          curtio<span className="text-indigo-600">.</span>
         </Link>
 
         {/* Desktop Navigation */}

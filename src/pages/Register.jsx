@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Zap, Eye, EyeOff, Mail, Lock, User, ShieldCheck } from 'lucide-react'
 import { useGoogleLogin } from "@react-oauth/google"
 import { syncPendingUrl } from '../lib/sync'
+import { FaBoltLightning, FaChartArea, FaLink } from 'react-icons/fa6'
 
 const API = `${import.meta.env.VITE_API_BASE_URL}/auth`;
 
@@ -176,18 +177,19 @@ export default function Register() {
           <div className="absolute top-20 right-10 w-72 h-72 bg-orange-400 opacity-10 rounded-full blur-3xl" />
           <div className="absolute bottom-20 left-10 w-80 h-80 bg-white opacity-5 rounded-full blur-3xl" />
         </div>
-        <Link to="/" className="flex items-center gap-2 relative">
-          <div className="w-9 h-9 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-            <Zap size={18} className="text-white" fill="white" />
-          </div>
-          <span className="text-2xl font-extrabold text-white tracking-tight">Brevly</span>
+        <Link
+          to="/"
+          className="font-bold text-2xl tracking-[-0.03em] text-white"
+          style={{ fontFamily: "'Space Grotesk','Inter',sans-serif" }}
+        >
+          Curtio<span className="text-white">.</span>
         </Link>
 
         <div className="relative space-y-6">
           {[
-            { emoji: '⚡', title: 'Shorten unlimited links', desc: 'No caps on how many links you create.' },
-            { emoji: '📊', title: 'Real-time analytics', desc: 'See every click, device, and country.' },
-            { emoji: '🔗', title: 'Custom branded slugs', desc: 'Make your links memorable and on-brand.' },
+            { emoji: <FaBoltLightning size={24} className="text-white" fill="white" /> , title: 'Shorten unlimited links', desc: 'No caps on how many links you create.' },
+            { emoji: <FaChartArea size={24} className="text-white" fill="white" /> , title: 'Real-time analytics', desc: 'See every click, device, and country.' },
+            { emoji: <FaLink size={24} className="text-white" fill="white" /> , title: 'Custom branded slugs', desc: 'Make your links memorable and on-brand.' },
           ].map(item => (
             <div key={item.title} className="flex items-start gap-4">
               <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center text-lg shrink-0">

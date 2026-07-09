@@ -13,7 +13,8 @@ import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/Fpassword";
 import Accuracy from "./pages/Accuracy";
 import Pricing from "./pages/Pricing";
-import Features from "./pages/features";
+import Features from "./pages/feature";
+//url changes
 
 
 export default function App() {

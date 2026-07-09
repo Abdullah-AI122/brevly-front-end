@@ -9,7 +9,7 @@ const Footer = () => {
           <div>
             <Link
               to="/"
-              className="text-3xl font-bold tracking-tight text-slate-900"
+              className="text-3xl font-bold tracking-[-0.03em] text-slate-900 font-space"
             >
               curtio<span className="text-indigo-600">.</span>
             </Link>

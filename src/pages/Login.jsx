@@ -77,15 +77,16 @@ export default function Login() {
             <div className="absolute top-20 left-10 w-72 h-72 bg-orange-400 opacity-10 rounded-full blur-3xl" />
             <div className="absolute bottom-20 right-10 w-80 h-80 bg-white opacity-5 rounded-full blur-3xl" />
           </div>
-          <Link to="/" className="flex items-center gap-2 relative">
-            <div className="w-9 h-9 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-              <Zap size={18} className="text-white" fill="white" />
-            </div>
-            <span className="text-2xl font-extrabold text-white tracking-tight">Brevly</span>
-          </Link>
+          <Link
+          to="/"
+          className="font-bold text-2xl tracking-[-0.03em] text-white"
+          style={{ fontFamily: "'Space Grotesk','Inter',sans-serif" }}
+        >
+          Curtio<span className="text-white">.</span>
+        </Link>
           <div className="relative">
             <blockquote className="text-white/90 text-2xl font-semibold leading-snug mb-4">
-              "Brevly cut our link management time in half. The analytics are incredible."
+              "Curtio cut our link management time in half. The analytics are incredible."
             </blockquote>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white font-bold">

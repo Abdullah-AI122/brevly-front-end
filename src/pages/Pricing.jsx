@@ -191,10 +191,10 @@ export default function Pricing() {
       {/* ── PRICING CARDS ────────────────────────────────────── */}
       <section className="pb-20" id="plans">
         <div className="max-w-[1152px] mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-6 items-start max-w-[1080px] mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 items-start max-w-[1080px] mx-auto">
 
             {/* Guest */}
-            <article className="bg-white border border-slate-200 rounded-[16px] p-8 shadow-[0_1px_3px_rgba(0,0,0,.07)] flex flex-col transition-all hover:shadow-[0_16px_38px_-10px_rgba(15,23,42,.20)] hover:-translate-y-1">
+            {/* <article className="bg-white border border-slate-200 rounded-[16px] p-8 shadow-[0_1px_3px_rgba(0,0,0,.07)] flex flex-col transition-all hover:shadow-[0_16px_38px_-10px_rgba(15,23,42,.20)] hover:-translate-y-1">
               <div className="font-bold text-[1.2rem] text-slate-900 tracking-[-0.01em]">Guest</div>
               <p className="text-slate-500 text-[0.92rem] mt-1.5 leading-[1.45] min-h-[40px]">For a quick link, right now.</p>
               <div className="flex items-baseline gap-1.5 mt-6 mb-1 flex-wrap">
@@ -214,7 +214,7 @@ export default function Pricing() {
                   </li>
                 ))}
               </ul>
-            </article>
+            </article> */}
 
             {/* Free */}
             <article className="bg-white border border-slate-200 rounded-[16px] p-8 shadow-[0_1px_3px_rgba(0,0,0,.07)] flex flex-col transition-all hover:shadow-[0_16px_38px_-10px_rgba(15,23,42,.20)] hover:-translate-y-1">
@@ -293,7 +293,7 @@ export default function Pricing() {
               <thead>
                 <tr>
                   <th className="text-left py-6 px-5 text-[1.05rem] font-bold text-slate-900 w-[34%]" />
-                  <th className="text-center py-6 px-5 text-[1.05rem] font-bold text-slate-900 w-[22%]">Guest</th>
+                  {/* <th className="text-center py-6 px-5 text-[1.05rem] font-bold text-slate-900 w-[22%]">Guest</th> */}
                   <th className="text-center py-6 px-5 text-[1.05rem] font-bold text-slate-900 w-[22%]">Free</th>
                   <th className="text-center py-6 px-5 text-[1.05rem] font-bold text-indigo-700 bg-indigo-50 rounded-tr-[24px] w-[22%]">Plus</th>
                 </tr>
@@ -305,7 +305,7 @@ export default function Pricing() {
                     className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors"
                   >
                     <td className="py-[15px] px-5 text-left font-semibold text-[0.93rem] text-slate-900 w-[34%]">{label}</td>
-                    <td className="py-[15px] px-5 text-center w-[22%]"><TableCell val={guest} /></td>
+                    {/* <td className="py-[15px] px-5 text-center w-[22%]"><TableCell val={guest} /></td> */}
                     <td className="py-[15px] px-5 text-center w-[22%]"><TableCell val={free} /></td>
                     <td className="py-[15px] px-5 text-center bg-indigo-50/60 w-[22%]"><TableCell val={plus} plus /></td>
                   </tr>
