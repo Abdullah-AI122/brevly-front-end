@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import useSocket from "../socket/useSocket";
 import {
   Zap,
   Copy,
@@ -26,9 +27,13 @@ import {
   Plus,
   FolderOpen,
   ChevronRight,
+  ChevronDown,
+  Search,
   ArrowLeft,
   Target,
+  Activity,
 } from "lucide-react";
+import { isOwner } from "../ownerAccess";
 import {
   FaBots,
   FaConfluence,
@@ -97,8 +102,8 @@ import Sidebar from "../components/Sidebar";
 import Filter from "../components/filter";
 import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
+import env from "../../Config/env";
 
-const PREMIUM_USERS = ["mrabdullahamjid33@gmail.com",  "mirhussainjan10387@gmail.com"];
 const COLORS = ["#4F46E5", "#F97316", "#22C55E", "#EAB308", "#EC4899"];
 
 const REFERER_RULES = [
@@ -152,17 +157,17 @@ function detectSource(log) {
   }
   const ref = log.referer || "";
   const ua = log.userAgent || "";
-  
+
   if (ref) {
     for (const rule of REFERER_RULES) {
       if (rule.pattern.test(ref)) return rule.source;
     }
   }
-  
+
   for (const rule of REFERER_RULES) {
     if (rule.pattern.test(ua)) return rule.source;
   }
-  
+
   for (const rule of BROWSER_RULES) {
     if (rule.pattern.test(ua)) return rule.source;
   }
@@ -177,16 +182,16 @@ const platformIconMap = Object.fromEntries(
 function StatCard({ icon, label, value, sub, className = "" }) {
   return (
     <div
-      className={`bg-white border border-slate-100 rounded-2xl p-5 shadow-sm ${className}`}
+      className={`bg-white border border-slate-100 min-h-[5.5rem] md:min-h-[7.5rem] rounded-2xl p-3 xl:p-5 shadow-sm ${className}`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-slate-500">{label}</span>
-        <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
+      <div className="flex items-center justify-between mb-1.5 md:mb-3 gap-1">
+        <span className="text-[11px] sm:text-xs xl:text-sm font-medium text-slate-500 truncate">{label}</span>
+        <div className="w-6 h-6 xl:w-9 xl:h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
           {icon}
         </div>
       </div>
-      <div className="text-3xl font-extrabold text-slate-900">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-1">{sub}</div>}
+      <div className="text-lg sm:text-xl xl:text-3xl font-extrabold text-slate-900 truncate">{value}</div>
+      {sub && <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 truncate">{sub}</div>}
     </div>
   );
 }
@@ -377,6 +382,114 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
   );
 }
 
+function DeleteCampaignModal({ campaignName, linksCount, onConfirm, onCancel, deleting }) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={() => !deleting && onCancel()}
+    >
+      <div
+        className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Trash2 size={22} className="text-red-500" />
+        </div>
+        <h3 className="font-extrabold text-slate-900 text-lg mb-1">
+          Delete campaign "{campaignName}"?
+        </h3>
+        <p className="text-slate-500 text-sm mb-6">
+          Are you sure you want to delete this campaign? The {linksCount} link{linksCount !== 1 ? "s" : ""} in this campaign will remain active in your account, but will no longer be grouped under this campaign.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {deleting ? (
+              <svg
+                className="animate-spin w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+            ) : (
+              <>
+                <Trash2 size={14} /> Delete
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RemoveFromCampaignConfirmationModal({ linkShort, campaignName, onConfirm, onCancel, processing }) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={() => !processing && onCancel()}
+    >
+      <div
+        className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <X size={22} className="text-amber-600" />
+        </div>
+        <h3 className="font-extrabold text-slate-900 text-lg mb-1">
+          Remove Link from Campaign?
+        </h3>
+        <p className="text-slate-500 text-xs sm:text-sm mb-6">
+          Are you sure you want to remove link <span className="font-mono font-semibold text-slate-800">{linkShort}</span> from campaign <strong className="text-slate-800 font-bold">"{campaignName}"</strong>? The short link will remain active.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={processing}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={processing}
+            className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {processing ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto" />
+            ) : (
+              "Remove"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LimitModal({ onClose }) {
   return (
     <div
@@ -470,6 +583,10 @@ export default function Campaigns() {
   const [shareLink, setShareLink] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteCampaignModal, setDeleteCampaignModal] = useState(null);
+  const [deletingCampaign, setDeletingCampaign] = useState(false);
+  const [removeLinkFromCampaignModal, setRemoveLinkFromCampaignModal] = useState(null); // { linkObj, campaignName }
+  const [removingFromCampaign, setRemovingFromCampaign] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -543,6 +660,11 @@ export default function Campaigns() {
   const [creating, setCreating] = useState(false);
 
   // New campaign URL creation form fields
+  const [useExistingLink, setUseExistingLink] = useState(false);
+  const [selectedExistingLinkId, setSelectedExistingLinkId] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState("");
+  const dropdownRef = useRef(null);
   const [destUrl, setDestUrl] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [utmSource, setUtmSource] = useState("");
@@ -552,29 +674,60 @@ export default function Campaigns() {
   const [expiresAt, setExpiresAt] = useState("");
 
   useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     if (!token) {
       setLoading(false);
       return;
     }
 
     fetchUrls();
-
-    // Poll for real-time updates every 3 seconds
-    const interval = setInterval(() => {
-      fetchUrls(true);
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, [token]);
+
+  // ── Real-time Socket.IO listener (replaces polling) ──────────
+  useSocket("analytics:updated", (updatedUrl) => {
+    if (!updatedUrl) return;
+
+    setLinks((prev) =>
+      prev.map((l) => {
+        if (l.id !== updatedUrl._id) return l;
+        return {
+          ...l,
+          clicks: updatedUrl.clicks,
+          preClicks: updatedUrl.preClicks || 0,
+          preClickLogs: updatedUrl.preClickLogs || [],
+          clickLogs: updatedUrl.clickLogs || [],
+          active: updatedUrl.active,
+          labels: updatedUrl.labels || [],
+          campaigns: updatedUrl.campaigns || [],
+        };
+      })
+    );
+  });
 
   async function fetchUrls(background = false) {
     if (!background) setLoading(true);
     if (!background) setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        localStorage.removeItem("apiToken");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userName");
+        window.location.href = "/login";
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         if (data.labels) {
@@ -586,6 +739,8 @@ export default function Campaigns() {
           original: u.originalUrl,
           short: `${SHORTENER_DOMAIN}/${u.shortCode}`,
           clicks: u.clicks,
+          preClicks: u.preClicks || 0,
+          preClickLogs: u.preClickLogs || [],
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
@@ -594,6 +749,7 @@ export default function Campaigns() {
             : null,
           clickLogs: u.clickLogs || [],
           labels: u.labels || [],
+          campaigns: u.campaigns || [],
         }));
         setLinks(mapped);
       } else {
@@ -657,22 +813,54 @@ export default function Campaigns() {
     return true;
   }
 
-  // Group links by campaigns
+  // Group links by campaigns (both utm_campaign parameter and campaigns array)
+  // campaignSourceMap: key = `${linkId}::${campaignName}` → source
+  // campaignMediumMap: key = `${linkId}::${campaignName}` → medium
   const campaignsMap = {};
+  const campaignSourceMap = {};
+  const campaignMediumMap = {};
   links.forEach((link) => {
-    const campaign = getCampaignParam(link.original);
-    if (campaign && campaign.trim()) {
-      const name = campaign.trim();
+    const linkCampaigns = new Map(); // name -> { source, medium }
+    const urlCampaign = getCampaignParam(link.original);
+    const urlSource = getSourceParam(link.original);
+    const urlMedium = getMediumParam(link.original);
+    if (urlCampaign && urlCampaign.trim()) {
+      linkCampaigns.set(urlCampaign.trim(), {
+        source: (urlSource || "").trim(),
+        medium: (urlMedium || "").trim(),
+      });
+    }
+    if (Array.isArray(link.campaigns)) {
+      link.campaigns.forEach((c) => {
+        if (typeof c === "string") {
+          if (c && c.trim()) linkCampaigns.set(c.trim(), { source: "", medium: "" });
+        } else if (c && c.name && c.name.trim()) {
+          linkCampaigns.set(c.name.trim(), {
+            source: (c.source || "").trim(),
+            medium: (c.medium || "").trim(),
+          });
+        }
+      });
+    }
+
+    linkCampaigns.forEach((details, name) => {
       if (!campaignsMap[name]) {
-        campaignsMap[name] = { name, links: [], clicks: 0, activeCount: 0 };
+        campaignsMap[name] = { name, links: [], clicks: 0, preClicks: 0, activeCount: 0 };
       }
       campaignsMap[name].links.push(link);
+      // Store source and medium for this link-campaign pair
+      campaignSourceMap[`${link.id}::${name}`] = details.source;
+      campaignMediumMap[`${link.id}::${name}`] = details.medium;
       const linkFilteredCount = (link.clickLogs || []).filter(
         logMatchesFilters,
       ).length;
+      const linkFilteredPreCount = (link.preClickLogs || []).filter(
+        logMatchesFilters,
+      ).length;
       campaignsMap[name].clicks += linkFilteredCount;
+      campaignsMap[name].preClicks += linkFilteredPreCount;
       if (link.active) campaignsMap[name].activeCount += 1;
-    }
+    });
   });
 
   const campaignsList = Object.values(campaignsMap).sort(
@@ -681,6 +869,10 @@ export default function Campaigns() {
   const totalCampaigns = campaignsList.length;
   const totalCampaignClicks = campaignsList.reduce(
     (sum, c) => sum + c.clicks,
+    0,
+  );
+  const totalCampaignPreClicks = campaignsList.reduce(
+    (sum, c) => sum + c.preClicks,
     0,
   );
 
@@ -828,7 +1020,7 @@ export default function Campaigns() {
     setDeleting(true);
     setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls/${slug}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -857,10 +1049,86 @@ export default function Campaigns() {
     }
   }
 
+  async function performDeleteCampaign() {
+    if (!deleteCampaignModal) return;
+    const { name } = deleteCampaignModal;
+    setDeletingCampaign(true);
+    setError("");
+    try {
+      const baseUrl = env.BACKEND_URL;
+      const res = await fetch(`${baseUrl}/urls/campaign/${encodeURIComponent(name)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchUrls();
+        setDeleteCampaignModal(null);
+        if (selectedCampaign === name) {
+          setSelectedCampaign(null);
+        }
+      } else {
+        setError(data.message || "Failed to delete campaign.");
+        setDeleteCampaignModal(null);
+      }
+    } catch (err) {
+      setError("Network error. Could not delete campaign.");
+      setDeleteCampaignModal(null);
+    } finally {
+      setDeletingCampaign(false);
+    }
+  }
+
+  async function performRemoveLinkFromCampaign() {
+    if (!removeLinkFromCampaignModal) return;
+    const { linkObj, campaignName: campaignNameToRemove } = removeLinkFromCampaignModal;
+    setRemovingFromCampaign(true);
+    setError("");
+    try {
+      const baseUrl = env.BACKEND_URL;
+      const updatedCampaigns = (linkObj.campaigns || [])
+        .filter((c) => {
+          const name = typeof c === "string" ? c : c?.name;
+          return name && name.trim().toLowerCase() !== campaignNameToRemove.trim().toLowerCase();
+        })
+        .map((c) => (typeof c === "string" ? { name: c, source: "", medium: "" } : { name: c.name, source: c.source || "", medium: c.medium || "" }));
+
+      const res = await fetch(`${baseUrl}/urls/${linkObj.slug}/campaigns`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ campaigns: updatedCampaigns }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchUrls();
+        setRemoveLinkFromCampaignModal(null);
+        if (selectedCampaignData) {
+          const remainingLinks = selectedCampaignData.links.filter(
+            (l) => l.id !== linkObj.id,
+          );
+          if (remainingLinks.length <= 1) {
+            setSelectedCampaign(null);
+          }
+        }
+      } else {
+        setError(data.message || "Failed to remove link from campaign.");
+        setRemoveLinkFromCampaignModal(null);
+      }
+    } catch (err) {
+      setError("Network error. Could not remove link from campaign.");
+      setRemoveLinkFromCampaignModal(null);
+    } finally {
+      setRemovingFromCampaign(false);
+    }
+  }
+
   async function handleToggle(id, slug) {
     setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls/${slug}/toggle`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
@@ -890,6 +1158,34 @@ export default function Campaigns() {
     return `${base}${sep}${params.join("&")}`;
   }
 
+  /**
+   * Build a display URL for a link within a specific campaign context.
+   * Sets utm_campaign and utm_source so the same link shows differently
+   * per campaign view (e.g. utm_campaign=facebook&utm_source=facebook).
+   */
+  function getCampaignDisplayUrl(originalUrl, campaignName, source) {
+    try {
+      const urlObj = new URL(originalUrl);
+      // Strip existing UTM params so we can set the campaign-specific ones
+      urlObj.searchParams.delete("utm_campaign");
+      urlObj.searchParams.delete("utm_source");
+      urlObj.searchParams.set("utm_campaign", campaignName);
+      if (source) urlObj.searchParams.set("utm_source", source);
+      return urlObj.toString();
+    } catch {
+      // Fallback for non-standard URLs
+      let cleaned = originalUrl
+        .replace(/([?&])utm_campaign=[^&#]*/gi, "")
+        .replace(/([?&])utm_source=[^&#]*/gi, "")
+        .replace(/\?&/, "?")
+        .replace(/\?$/, "");
+      const sep = cleaned.includes("?") ? "&" : "?";
+      let result = `${cleaned}${sep}utm_campaign=${encodeURIComponent(campaignName)}`;
+      if (source) result += `&utm_source=${encodeURIComponent(source)}`;
+      return result;
+    }
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     setCreating(true);
@@ -900,45 +1196,108 @@ export default function Campaigns() {
         throw new Error("Campaign Name is required.");
       }
 
-      const finalUrl = buildFinalUrl(
-        destUrl,
-        activeCampaign,
-        utmSource,
-        utmMedium,
-      );
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
-      const res = await fetch(`${baseUrl}/urls`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          originalUrl: finalUrl,
-          customAlias: alias,
-          password: password || undefined,
-          expiresAt: expiresAt || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        await fetchUrls();
-        setDestUrl("");
-        setCampaignName("");
-        setUtmSource("");
-        setUtmMedium("");
-        setAlias("");
-        setPassword("");
-        setExpiresAt("");
-        setShowCreateForm(false);
-        if (!selectedCampaign) {
-          setSelectedCampaign(activeCampaign.trim());
+      const baseUrl = env.BACKEND_URL;
+
+      if (useExistingLink) {
+        if (!selectedExistingLinkId) {
+          throw new Error("Please select an existing link.");
+        }
+        const targetLink = links.find((l) => l.id === selectedExistingLinkId);
+        if (!targetLink) {
+          throw new Error("Selected link not found.");
+        }
+        const existingCampaigns = Array.isArray(targetLink.campaigns)
+          ? targetLink.campaigns.map((c) =>
+              typeof c === "string"
+                ? { name: c, source: "", medium: "" }
+                : { name: c.name, source: c.source || "", medium: c.medium || "" }
+            )
+          : [];
+
+        // Check if already in campaign
+        const existingIdx = existingCampaigns.findIndex(
+          (c) => c.name.toLowerCase() === activeCampaign.trim().toLowerCase()
+        );
+        const newObj = {
+          name: activeCampaign.trim(),
+          source: utmSource.trim(),
+          medium: utmMedium.trim(),
+        };
+        if (existingIdx >= 0) {
+          existingCampaigns[existingIdx] = newObj;
+        } else {
+          existingCampaigns.push(newObj);
+        }
+
+        const res = await fetch(`${baseUrl}/urls/${targetLink.slug}/campaigns`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ campaigns: existingCampaigns }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          await fetchUrls();
+          setDestUrl("");
+          setCampaignName("");
+          setUtmSource("");
+          setUtmMedium("");
+          setAlias("");
+          setPassword("");
+          setExpiresAt("");
+          setUseExistingLink(false);
+          setSelectedExistingLinkId("");
+          setShowCreateForm(false);
+          if (!selectedCampaign) {
+            setSelectedCampaign(activeCampaign.trim());
+          }
+        } else {
+          setError(data.message || "Failed to update link campaigns.");
         }
       } else {
-        setError(data.message || "Failed to create short URL.");
+        const finalUrl = buildFinalUrl(
+          destUrl,
+          activeCampaign,
+          utmSource,
+          utmMedium,
+        );
+        const res = await fetch(`${baseUrl}/urls`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            originalUrl: finalUrl,
+            customAlias: alias,
+            password: password || undefined,
+            expiresAt: expiresAt || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          await fetchUrls();
+          setDestUrl("");
+          setCampaignName("");
+          setUtmSource("");
+          setUtmMedium("");
+          setAlias("");
+          setPassword("");
+          setExpiresAt("");
+          setUseExistingLink(false);
+          setSelectedExistingLinkId("");
+          setShowCreateForm(false);
+          if (!selectedCampaign) {
+            setSelectedCampaign(activeCampaign.trim());
+          }
+        } else {
+          setError(data.message || "Failed to create short URL.");
+        }
       }
     } catch (err) {
-      setError(err.message || "Network error. Could not create short URL.");
+      setError(err.message || "Network error. Could not save campaign link.");
     } finally {
       setCreating(false);
     }
@@ -966,6 +1325,24 @@ export default function Campaigns() {
           deleting={deleting}
         />
       )}
+      {deleteCampaignModal && (
+        <DeleteCampaignModal
+          campaignName={deleteCampaignModal.name}
+          linksCount={deleteCampaignModal.links.length}
+          onConfirm={performDeleteCampaign}
+          onCancel={() => setDeleteCampaignModal(null)}
+          deleting={deletingCampaign}
+        />
+      )}
+      {removeLinkFromCampaignModal && (
+        <RemoveFromCampaignConfirmationModal
+          linkShort={removeLinkFromCampaignModal.linkObj.short}
+          campaignName={removeLinkFromCampaignModal.campaignName}
+          onConfirm={performRemoveLinkFromCampaign}
+          onCancel={() => setRemoveLinkFromCampaignModal(null)}
+          processing={removingFromCampaign}
+        />
+      )}
       {showLimitModal && <LimitModal onClose={() => setShowLimitModal(false)} />}
 
       <div className="flex min-h-screen">
@@ -978,7 +1355,7 @@ export default function Campaigns() {
         />
 
         {/* ── Main Content ── */}
-        <main className="flex-1 min-w-0 md:ml-64 px-4 sm:px-6 md:px-8 py-6 md:py-8 space-y-6">
+        <main className="flex-1 min-w-0 md:ml-60 lg:ml-80 px-2 lg:px-4 sm:px-6 md:px-8 py-6 md:py-8 space-y-3 lg:space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -992,7 +1369,7 @@ export default function Campaigns() {
               {selectedCampaign ? (
                 <button
                   onClick={() => setSelectedCampaign(null)}
-                  className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shrink-0 transition-colors"
+                  className="p-2 rounded-xl cursor-pointer border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shrink-0 transition-colors"
                   title="Back to Overview"
                 >
                   <ArrowLeft size={16} />
@@ -1025,32 +1402,47 @@ export default function Campaigns() {
                 className="flex items-center gap-2 font-semibold text-sm px-3 sm:px-4 py-2.5 rounded-xl transition-colors shadow-sm bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 cursor-pointer"
               >
                 <Plus size={16} />
-                <span className="hidden sm:inline">
+                <span className="hidden sm:inline text-xs md:text-md">
                   {selectedCampaign ? "New Link" : "New Campaign"}
                 </span>
               </button>
               {selectedCampaign && (
-                <button
-                  onClick={() => setFilterOpen((s) => !s)}
-                  className={`ml-2 px-3 py-2 border rounded-xl shadow-sm cursor-pointer flex items-center gap-2 transition-colors ${filterOpen ? "bg-indigo-50 border-indigo-200 text-indigo-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
-                >
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
+                <>
+                  <button
+                    onClick={() => setFilterOpen((s) => !s)}
+                    className={`ml-2 px-3 py-2 border rounded-xl shadow-sm cursor-pointer flex items-center gap-2 transition-colors ${filterOpen ? "bg-indigo-50 border-indigo-200 text-indigo-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
                   >
-                    <path
-                      d="M22 3H2l7 9v7l6-4v-3l7-9z"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span className="hidden sm:inline text-sm font-medium">
-                    Filters
-                  </span>
-                </button>
+                    <svg
+                      className="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path
+                        d="M22 3H2l7 9v7l6-4v-3l7-9z"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span className="hidden sm:inline text-sm font-medium">
+                      Filters
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setDeleteCampaignModal({
+                        name: selectedCampaign,
+                        links: campaignLinks,
+                      })
+                    }
+                    className="ml-1 px-3 py-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl shadow-sm cursor-pointer flex items-center gap-1.5 text-xs font-semibold transition-colors"
+                    title="Delete Campaign"
+                  >
+                    <Trash2 size={14} />
+                    <span className="hidden sm:inline">Delete </span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1120,21 +1512,161 @@ export default function Campaigns() {
                 Create Tracked Link for{" "}
                 {selectedCampaign ? `"${selectedCampaign}"` : "a Campaign"}
               </h2>
+              {/* Tab Selector: Create New Link vs Add Existing Link */}
+              <div className="flex gap-2 mb-4 p-1 bg-slate-100 rounded-xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => setUseExistingLink(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    !useExistingLink
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Create New Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseExistingLink(true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    useExistingLink
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Select Existing Link ({links.length})
+                </button>
+              </div>
+
               <form onSubmit={handleCreate} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Destination URL *
-                    </label>
-                    <input
-                      type="url"
-                      value={destUrl}
-                      onChange={(e) => setDestUrl(e.target.value)}
-                      required
-                      placeholder="https://example.com/promo-landing"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
-                    />
-                  </div>
+                  {useExistingLink ? (
+                    <div className="sm:col-span-2 relative" ref={dropdownRef}>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Select Existing Link *
+                      </label>
+                      
+                      {/* Dropdown trigger button */}
+                      <button
+                        type="button"
+                        onClick={() => setDropdownOpen((prev) => !prev)}
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white flex items-center justify-between shadow-sm hover:border-slate-300 transition-colors cursor-pointer"
+                      >
+                        <span className="truncate">
+                          {selectedExistingLinkId ? (
+                            (() => {
+                              const match = links.find((l) => l.id === selectedExistingLinkId);
+                              return match ? (
+                                <span className="font-medium text-slate-800">
+                                  <span className="font-mono text-indigo-600 mr-2">{match.short}</span>
+                                  <span className="text-slate-400 text-xs truncate">({match.original})</span>
+                                </span>
+                              ) : (
+                                "-- Choose a short link --"
+                              );
+                            })()
+                          ) : (
+                            <span className="text-slate-400">-- Choose a short link --</span>
+                          )}
+                        </span>
+                        <ChevronDown size={16} className={`text-slate-400 shrink-0 transition-transform ${dropdownOpen ? "rotate-180 text-indigo-600" : ""}`} />
+                      </button>
+
+                      {/* Dropdown menu */}
+                      {dropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-hidden flex flex-col divide-y divide-slate-100">
+                          {/* Search box inside dropdown */}
+                          <div className="p-2 bg-slate-50 sticky top-0 z-10">
+                            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus-within:border-indigo-400">
+                              <Search size={14} className="text-slate-400 shrink-0" />
+                              <input
+                                type="text"
+                                value={dropdownSearch}
+                                onChange={(e) => setDropdownSearch(e.target.value)}
+                                placeholder="Search short link or original URL..."
+                                className="w-full text-xs text-slate-800 outline-none placeholder-slate-400"
+                              />
+                              {dropdownSearch && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDropdownSearch("")}
+                                  className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Options list */}
+                          <div className="overflow-y-auto max-h-48 p-1">
+                            {(() => {
+                              const filtered = links.filter((l) => {
+                                const q = dropdownSearch.toLowerCase().trim();
+                                if (!q) return true;
+                                return (
+                                  l.short.toLowerCase().includes(q) ||
+                                  l.original.toLowerCase().includes(q) ||
+                                  (l.slug && l.slug.toLowerCase().includes(q))
+                                );
+                              });
+
+                              if (filtered.length === 0) {
+                                return (
+                                  <div className="p-3 text-center text-xs text-slate-400">
+                                    No matching links found
+                                  </div>
+                                );
+                              }
+
+                              return filtered.map((l) => {
+                                const isSelected = l.id === selectedExistingLinkId;
+                                return (
+                                  <div
+                                    key={l.id}
+                                    onClick={() => {
+                                      setSelectedExistingLinkId(l.id);
+                                      setDropdownOpen(false);
+                                      setDropdownSearch("");
+                                    }}
+                                    className={`px-3 py-2.5 rounded-lg cursor-pointer text-xs flex flex-col gap-0.5 transition-colors ${
+                                      isSelected
+                                        ? "bg-indigo-50 border border-indigo-200 text-indigo-900 font-semibold"
+                                        : "hover:bg-slate-50 text-slate-700"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-mono text-indigo-600 font-medium">
+                                        {l.short}
+                                      </span>
+                                      {isSelected && <Check size={14} className="text-indigo-600" />}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 truncate max-w-md">
+                                      {l.original}
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Destination URL *
+                      </label>
+                      <input
+                        type="url"
+                        value={destUrl}
+                        onChange={(e) => setDestUrl(e.target.value)}
+                        required
+                        placeholder="https://example.com/promo-landing"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -1155,25 +1687,27 @@ export default function Campaigns() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Custom Alias (optional)
-                    </label>
-                    <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                      <span className="text-slate-400 text-sm pl-4 pr-1">
-                        redirect.curtio.io/
-                      </span>
-                      <input
-                        type="text"
-                        value={alias}
-                        onChange={(e) =>
-                          setAlias(e.target.value.replace(/[^a-z0-9-]/gi, ""))
-                        }
-                        placeholder="summer-promo"
-                        className="flex-1 py-2.5 pr-4 text-sm text-slate-800 outline-none"
-                      />
+                  {!useExistingLink && (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Custom Alias (optional)
+                      </label>
+                      <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                        <span className="text-slate-400 text-sm pl-4 pr-1">
+                          redirect.curtio.io/
+                        </span>
+                        <input
+                          type="text"
+                          value={alias}
+                          onChange={(e) =>
+                            setAlias(e.target.value.replace(/[^a-z0-9-]/gi, ""))
+                          }
+                          placeholder="summer-promo"
+                          className="flex-1 py-2.5 pr-4 text-sm text-slate-800 outline-none"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -1210,6 +1744,8 @@ export default function Campaigns() {
                   >
                     {creating ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : useExistingLink ? (
+                      "Add Link to Campaign"
                     ) : (
                       "Create Link"
                     )}
@@ -1231,7 +1767,7 @@ export default function Campaigns() {
             /* ── VIEW 1: CAMPAIGNS OVERVIEW ── */
             <>
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOwner() ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-2 xl:gap-4`}>
                 <StatCard
                   icon={<Target size={18} className="text-indigo-600" />}
                   label="Total UTM Campaigns"
@@ -1242,10 +1778,18 @@ export default function Campaigns() {
                   icon={
                     <MousePointerClick size={18} className="text-orange-500" />
                   }
-                  label="Campaign Clicks"
+                  label="Campaign Redirected Clicks"
                   value={totalCampaignClicks.toLocaleString()}
                   sub="Clicks on tagged links"
                 />
+                {isOwner() && (
+                  <StatCard
+                    icon={<Activity size={18} className="text-amber-500" />}
+                    label="Campaign Non-Redirected Clicks"
+                    value={totalCampaignPreClicks.toLocaleString()}
+                    sub="Owner view pre-clicks"
+                  />
+                )}
                 <StatCard
                   icon={<FolderOpen size={18} className="text-green-500" />}
                   label="Tagged URLs"
@@ -1257,11 +1801,11 @@ export default function Campaigns() {
               </div>
 
               {/* Campaigns list table */}
-              <Card className="p-6">
-                <h2 className="text-base font-bold text-slate-900 mb-1">
+              <Card className=" p-3 lg:p-6">
+                <h2 className="text-sm lg:text-base font-bold text-slate-900 mb-1">
                   Your Marketing Campaigns
                 </h2>
-                <p className="text-xs text-slate-400 mb-5">
+                <p className="text-[10px] lg:text-sm text-slate-400 mb-5">
                   Click on a campaign to view details, trends, and manage its
                   links
                 </p>
@@ -1269,7 +1813,7 @@ export default function Campaigns() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+                      <tr className="border-b border-slate-100 text-slate-400 text-[10px] lg:text-xs font-semibold lg:font-bold uppercase tracking-wider">
                         <th className="py-3 pr-4">Campaign Name</th>
                         <th className="py-3 px-4 text-right">Links Count</th>
                         <th className="py-3 px-4 text-right">Total Clicks</th>
@@ -1305,28 +1849,39 @@ export default function Campaigns() {
                           >
                             <td className="py-4 pr-4 font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
                               <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 bg-indigo-50 group-hover:bg-indigo-100 transition-colors rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
-                                  <Target size={14} />
+                                <div className="w-4 lg:w-8 h-4 lg:h-8 bg-indigo-50 group-hover:bg-indigo-100 transition-colors rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+                                  <Target size={10} className="text-[10px] lg:text-sm" />
                                 </div>
-                                <span className="truncate max-w-[200px]">
+                                <span className="text-[10px] lg:text-sm truncate max-w-[200px]">
                                   {c.name}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-4 px-4 text-right font-medium text-slate-500">
+                            <td className=" text-[10px] lg:text-sm py-4 px-4 text-right font-medium text-slate-500">
                               {c.links.length} URLs
                             </td>
-                            <td className="py-4 px-4 text-right font-extrabold text-slate-800">
+                            <td className="text-[10px] lg:text-sm py-4 px-4 text-right font-extrabold text-slate-800">
                               {c.clicks.toLocaleString()}
                             </td>
                             <td className="py-4 px-4 text-center">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700">
+                              <span className="inline-flex text-[10px] lg:text-sm items-center px-1 lg:px-2 lg:py-0.5 rounded-full font-semibold bg-green-50 text-green-700">
                                 {c.activeCount} / {c.links.length} Active
                               </span>
                             </td>
-                             <td className="py-4 pl-4 text-right" onClick={(e) => e.stopPropagation()}>
+                            <td className="py-4 pl-4 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-end gap-2">
-                                
+                                <button
+                                  onClick={() =>
+                                    setDeleteCampaignModal({
+                                      name: c.name,
+                                      links: c.links,
+                                    })
+                                  }
+                                  className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-50 cursor-pointer"
+                                  title="Delete Campaign"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
                                 <button
                                   onClick={() => setSelectedCampaign(c.name)}
                                   className="text-slate-400 hover:text-slate-800 transition-colors p-1"
@@ -1347,7 +1902,7 @@ export default function Campaigns() {
             /* ── VIEW 2: CAMPAIGN DETAILS ── */
             <>
               {/* Stats Cards for Selected Campaign */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOwner() ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-2 xl:gap-4`}>
                 <StatCard
                   icon={<LinkIcon size={18} className="text-indigo-600" />}
                   label="Campaign Links"
@@ -1358,10 +1913,18 @@ export default function Campaigns() {
                   icon={
                     <MousePointerClick size={18} className="text-orange-500" />
                   }
-                  label="Total Clicks"
+                  label="Campaign Redirected Clicks"
                   value={selectedCampaignData.clicks.toLocaleString()}
                   sub="Accumulated visits"
                 />
+                {isOwner() && (
+                  <StatCard
+                    icon={<Activity size={18} className="text-amber-500" />}
+                    label="Campaign Non-Redirected Clicks"
+                    value={selectedCampaignData.preClicks.toLocaleString()}
+                    sub="Owner view pre-clicks"
+                  />
+                )}
                 <StatCard
                   icon={<Zap size={18} className="text-green-500" />}
                   label="Active Links"
@@ -1376,11 +1939,11 @@ export default function Campaigns() {
                 />
               </div>
               {/* Campaign Links List */}
-              <Card className="p-6">
-                <h2 className="text-base font-bold text-slate-900 mb-1">
+              <Card className="p-3  lg:p-6">
+                <h2 className="text-sm lg:text-base font-bold text-slate-900 mb-1">
                   URLs Tagged in Campaign
                 </h2>
-                <p className="text-xs text-slate-400 mb-5">
+                <p className="text-[10px] lg:text-sm text-slate-400 mb-5">
                   Click lists, status, and custom properties of shortened links
                   in this group
                 </p>
@@ -1399,36 +1962,44 @@ export default function Campaigns() {
                     </thead>
                     <tbody>
                       {campaignLinks.map((link) => {
-                        const s = getSourceParam(link.original);
-                        const m = getMediumParam(link.original);
+                        const pairSource = campaignSourceMap[`${link.id}::${selectedCampaign}`] || getSourceParam(link.original);
+                        const pairMedium = campaignMediumMap[`${link.id}::${selectedCampaign}`] || getMediumParam(link.original);
+                        const displayUrl = getCampaignDisplayUrl(link.original, selectedCampaign, pairSource);
+
+                        // Build the campaign short URL with tracking params
+                        let campaignShortUrl = `${link.short}?utm_campaign=${encodeURIComponent(selectedCampaign)}`;
+                        if (pairSource) campaignShortUrl += `&utm_source=${encodeURIComponent(pairSource)}`;
+                        if (pairMedium) campaignShortUrl += `&utm_medium=${encodeURIComponent(pairMedium)}`;
+                        const campaignLinkObj = { ...link, short: campaignShortUrl };
+
                         return (
                           <tr
                             key={link.id}
                             className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors text-sm"
                           >
-                            <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[200px] truncate">
+                            <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[240px] truncate">
                               <div>
-                                <div className="truncate">{link.short}</div>
-                                <div className="text-[10px] text-slate-400 font-normal truncate mt-0.5">
+                                <div className="truncate font-mono text-xs" title={campaignShortUrl}>
+                                  {campaignShortUrl}
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-normal truncate mt-0.5" title={link.original}>
                                   {link.original}
                                 </div>
                               </div>
                             </td>
                             <td className="py-3 px-3">
                               <div className="flex gap-1.5 flex-wrap">
-                                {s && (
+                                <span className="text-[9px] bg-indigo-50 text-indigo-600 font-semibold px-2 py-0.5 rounded-full">
+                                  campaign: {selectedCampaign}
+                                </span>
+                                {pairSource && (
                                   <span className="text-[9px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
-                                    src: {s}
+                                    src: {pairSource}
                                   </span>
                                 )}
-                                {m && (
+                                {pairMedium && (
                                   <span className="text-[9px] bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
-                                    med: {m}
-                                  </span>
-                                )}
-                                {!s && !m && (
-                                  <span className="text-xs text-slate-400">
-                                    -
+                                    med: {pairMedium}
                                   </span>
                                 )}
                               </div>
@@ -1455,16 +2026,16 @@ export default function Campaigns() {
                               </button>
                             </td>
                             <td className="py-3 px-3 text-center">
-                              <LabelCell 
-                                link={link} 
-                                accountLabels={accountLabels} 
-                                onLabelsChanged={fetchUrls} 
+                              <LabelCell
+                                link={link}
+                                accountLabels={accountLabels}
+                                onLabelsChanged={fetchUrls}
                               />
                             </td>
                             <td className="py-3 pl-3 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
-                                  onClick={() => setShareLink(link)}
+                                  onClick={() => setShareLink(campaignLinkObj)}
                                   title="Share on WhatsApp"
                                   className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-green-600 transition-colors cursor-pointer"
                                 >
@@ -1472,9 +2043,9 @@ export default function Campaigns() {
                                 </button>
                                 <button
                                   onClick={() =>
-                                    handleCopy(link.id, link.short)
+                                    handleCopy(link.id, campaignShortUrl)
                                   }
-                                  title="Copy Link"
+                                  title="Copy Campaign Short Link"
                                   className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                                 >
                                   {copied === link.id ? (
@@ -1487,7 +2058,7 @@ export default function Campaigns() {
                                   )}
                                 </button>
                                 <button
-                                  onClick={() => setQrLink(link)}
+                                  onClick={() => setQrLink(campaignLinkObj)}
                                   title="QR Code"
                                   className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
                                 >
@@ -1502,9 +2073,21 @@ export default function Campaigns() {
                                 </Link>
                                 <button
                                   onClick={() =>
+                                    setRemoveLinkFromCampaignModal({
+                                      linkObj: link,
+                                      campaignName: selectedCampaign,
+                                    })
+                                  }
+                                  title="Remove from this Campaign"
+                                  className="p-1 rounded hover:bg-amber-50 text-slate-400 hover:text-amber-600 transition-colors cursor-pointer"
+                                >
+                                  <X size={13} />
+                                </button>
+                                <button
+                                  onClick={() =>
                                     handleDelete(link.id, link.slug)
                                   }
-                                  title="Delete"
+                                  title="Delete Link"
                                   className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={13} />
@@ -1519,12 +2102,12 @@ export default function Campaigns() {
                 </div>
               </Card>
               {/* Traffic trend over time */}
-              <Card className="p-6">
+              <Card className=" p-3 lg:p-6">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">
+                  <h2 className="text-sm lg:text-base font-bold text-slate-900">
                     Campaign Clicks Trend
                   </h2>
-                  <p className="text-xs text-slate-400 mb-5">
+                  <p className="text-[10px] lg:text-sm text-slate-400 mb-5">
                     Aggregated weekly traffic specifically for campaign "
                     {selectedCampaign}"
                   </p>
@@ -1581,13 +2164,13 @@ export default function Campaigns() {
               </Card>
 
               {/* Referrers + Devices Breakdowns */}
-              <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6">
+              <div className="grid lg:grid-cols-3 xl:grid-cols-2 grid-cols-1 lg:gap-6 gap-2">
                 {/* Referrers */}
-                <Card className="p-6">
-                  <h2 className="text-base font-bold text-slate-900 mb-1">
+                <Card className="p-3 lg:p-6">
+                  <h2 className="text-sm font-bold text-slate-900 mb-1">
                     Referrers
                   </h2>
-                  <p className="text-xs text-slate-400 mb-4">
+                  <p className="text-[10px] lg:text-sm text-slate-400 mb-4">
                     Hits per platform — WhatsApp, TikTok, Direct and more
                   </p>
                   {referrerData.length > 0 ? (
@@ -1660,14 +2243,14 @@ export default function Campaigns() {
                 </Card>
 
                 {/* Device type breakdown */}
-                <Card className="p-6">
-                  <h2 className="text-base font-bold text-slate-900 mb-1">
+                <Card className="p-3 lg:p-6">
+                  <h2 className="text-sm md:text-base font-bold text-slate-900 mb-1">
                     Devices Breakdown
                   </h2>
-                  <p className="text-xs text-slate-400 mb-4">
+                  <p className="text-[10px] md:text-sm text-slate-400 mb-4">
                     Platforms used by campaign visitors
                   </p>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center xl:gap-4 flex-col lg:flex-row">
                     <ResponsiveContainer width="55%" height={160}>
                       <PieChart>
                         <Pie
@@ -1718,11 +2301,11 @@ export default function Campaigns() {
                 </Card>
 
                 {/* Geographic Breakdown */}
-                <Card className="p-6">
-                  <h2 className="text-base font-bold text-slate-900 mb-1">
+                <Card className="lg:p-6 p-3">
+                  <h2 className="text-sm font-bold text-slate-900 mb-1">
                     Geographic Share
                   </h2>
-                  <p className="text-xs text-slate-400 mb-4">
+                  <p className="text-[10px] text-slate-400 mb-4">
                     Estimated visitor origins for this campaign
                   </p>
                   <div className="space-y-3.5">
@@ -1734,12 +2317,12 @@ export default function Campaigns() {
                           key={geo.country}
                           className="flex items-center gap-3"
                         >
-                          <span className="text-xl w-6 text-center shrink-0">
+                          <span className="text-sm md:text-xl w-6 text-center shrink-0">
                             {geo.flag}
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-slate-700 font-semibold truncate">
+                              <span className="text-[10px] md:text-xs text-slate-700 font-semibold truncate">
                                 {geo.country}
                               </span>
                               <span className="text-xs font-bold text-slate-800 ml-2">

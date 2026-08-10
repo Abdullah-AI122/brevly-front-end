@@ -761,14 +761,6 @@ Currently all state is local React state (useState). When connecting to the back
 
 ---
 
-## 13. Environment Variables
-
-### Frontend (`.env`)
-```
-VITE_API_BASE_URL=https://api.brev.ly
-VITE_APP_URL=https://brev.ly
-VITE_GOOGLE_CLIENT_ID=your_google_client_id
-```
 
 ### Backend (`.env`)
 ```

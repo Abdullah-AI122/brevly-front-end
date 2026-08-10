@@ -4,8 +4,9 @@ import { Zap, Eye, EyeOff, Mail, Lock, User, ShieldCheck } from 'lucide-react'
 import { useGoogleLogin } from "@react-oauth/google"
 import { syncPendingUrl } from '../lib/sync'
 import { FaBoltLightning, FaChartArea, FaLink } from 'react-icons/fa6'
+import env from "../../Config/env";
 
-const API = `${import.meta.env.VITE_API_BASE_URL}/auth`;
+const API = `${env.BACKEND_URL}/auth`;
 
 
 

@@ -4,7 +4,7 @@ export async function syncPendingUrl(apiToken) {
   const pendingUrl = getCookie('brevly_pending_url');
   if (pendingUrl) {
     try {
-      const res = await fetch('http://localhost:6090/api/urls', {
+      const res = await fetch(`${env.BACKEND_URL}/urls`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -16,7 +16,6 @@ export async function syncPendingUrl(apiToken) {
       });
       const data = await res.json();
       if (data.success) {
-        console.log("Successfully synced pending guest URL:", pendingUrl);
       } else {
         console.error("Failed to sync pending guest URL:", data.message);
       }

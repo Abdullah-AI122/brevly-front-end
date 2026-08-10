@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Zap, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { syncPendingUrl } from "../lib/sync";
+import env from "../../Config/env";
 
-
-const baseUrl = `${import.meta.env.VITE_API_URL}/auth`;
+const baseUrl = `${env.BACKEND_URL}/auth`;
 
 export default function Login() {
     const navigate = useNavigate();

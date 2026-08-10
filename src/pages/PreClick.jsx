@@ -49,7 +49,6 @@ import Sidebar from "../components/Sidebar";
 import Filter from "../components/filter";
 import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
-import { isOwner } from "../ownerAccess";
 import AddToCampaignModal from "../components/AddToCampaignModal";
 
 const FREE_LIMIT = 100;
@@ -104,7 +103,6 @@ import {
   SiClickup,
 } from "react-icons/si";
 import env from "../../Config/env";
-
 const COLORS = ["#4F46E5", "#F97316", "#22C55E", "#EAB308", "#EC4899"];
 
 const REFERER_RULES = [
@@ -199,7 +197,7 @@ function StatCard({ icon, label, value, sub, className = "" }) {
         </div>
       </div>
       <div className="text-lg sm:text-xl md:text-3xl font-extrabold text-slate-900 truncate">{value}</div>
-      {sub && <div className="text-[10px] sm:text-xs xl:text-sm text-slate-400 mt-0.5 sm:mt-1 truncate">{sub}</div>}
+      {sub && <div className="text-[10px] sm:text-xs text-slate-400 mt-0.5 sm:mt-1 truncate">{sub}</div>}
     </div>
   );
 }
@@ -219,7 +217,7 @@ const CustomTooltip = ({ active, payload, label }) => {
     return (
       <div className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl shadow-lg">
         <div className="font-semibold mb-0.5">{label}</div>
-        <div>{payload[0].value.toLocaleString()} clicks</div>
+        <div>{payload[0].value.toLocaleString()} pre-clicks</div>
       </div>
     );
   }
@@ -390,7 +388,7 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
   );
 }
 
-export default function AnalytcsDashboard() {
+export default function PreClick() {
   const navigate = useNavigate();
 
   const getStoredUser = () => {
@@ -408,7 +406,6 @@ export default function AnalytcsDashboard() {
   const userName = storedUser.name || "User";
   const userEmail = storedUser.email || "";
   const userInitial = userName.charAt(0).toUpperCase();
-  const canViewPreClicks = isOwner();
 
   function handleLogout() {
     localStorage.removeItem("apiToken");
@@ -531,8 +528,8 @@ export default function AnalytcsDashboard() {
     fetchUrls();
   }, [token]);
 
-  // ── Real-time Socket.IO listener (replaces polling) ──────────
-  useSocket("analytics:updated", (updatedUrl) => {
+  // ── Real-time Socket.IO listener for pre-clicks (replaces polling) ──
+  useSocket("preclick:updated", (updatedUrl) => {
     if (!updatedUrl) return;
 
     setRawUrls((prev) =>
@@ -544,10 +541,8 @@ export default function AnalytcsDashboard() {
         if (l.id !== updatedUrl._id) return l;
         return {
           ...l,
-          clicks: updatedUrl.clicks,
           preClicks: updatedUrl.preClicks || 0,
           preClickLogs: updatedUrl.preClickLogs || [],
-          clickLogs: updatedUrl.clickLogs || [],
           active: updatedUrl.active,
           labels: updatedUrl.labels || [],
           campaigns: updatedUrl.campaigns || [],
@@ -582,16 +577,14 @@ export default function AnalytcsDashboard() {
           slug: u.shortCode,
           original: u.originalUrl,
           short: `${SHORTENER_DOMAIN}/${u.shortCode}`,
-          clicks: u.clicks,
           preClicks: u.preClicks || 0,
-          preClickLogs: u.preClickLogs || [],
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
           expiresAt: u.expiresAt
             ? new Date(u.expiresAt).toISOString().slice(0, 16)
             : null,
-          clickLogs: u.clickLogs || [],
+          preClickLogs: u.preClickLogs || [],
           labels: u.labels || [],
           campaigns: u.campaigns || [],
         }));
@@ -678,7 +671,7 @@ export default function AnalytcsDashboard() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-4"></div>
         <p className="text-slate-500 font-semibold text-sm">
-          Loading user analytics...
+          Loading pre-click analytics...
         </p>
       </div>
     );
@@ -689,9 +682,10 @@ export default function AnalytcsDashboard() {
   const allFilteredLogs = [];
   const perLinkCounts = {};
   links.forEach((l) => {
-    (l.clickLogs || []).forEach((log) => {
-      const clickedAt = log.clickedAt
-        ? new Date(log.clickedAt).toISOString().slice(0, 10)
+    (l.preClickLogs || []).forEach((log) => {
+      const clickedAtDate = log.clickedAt ? new Date(log.clickedAt) : null;
+      const clickedAt = clickedAtDate
+        ? clickedAtDate.toISOString().slice(0, 10)
         : null;
       if (startDate && clickedAt && clickedAt < startDate) return;
       if (endDate && clickedAt && clickedAt > endDate) return;
@@ -713,8 +707,10 @@ export default function AnalytcsDashboard() {
   });
 
   const totalUrls = links.length;
-  const totalClicks = allFilteredLogs.length;
-  const totalPreClicks = links.reduce((sum, l) => sum + (l.preClicks || 0), 0);
+  const hasActiveFilters = Boolean(startDate || endDate || selectedDevice || selectedCountry || selectedSource);
+  const totalPreClicks = hasActiveFilters
+    ? allFilteredLogs.length
+    : Math.max(allFilteredLogs.length, links.reduce((sum, l) => sum + (l.preClicks || 0), 0));
   const activeLinks = links.filter((l) => l.active).length;
   const inactiveLinks = totalUrls - activeLinks;
 
@@ -725,7 +721,7 @@ export default function AnalytcsDashboard() {
 
   const chartStart = parseDate(startDate);
   const chartEnd = parseDate(endDate);
-  const clickHistory = [];
+  const preClickHistory = [];
   const daysMap = {};
 
   const rangeStart =
@@ -755,7 +751,7 @@ export default function AnalytcsDashboard() {
   });
 
   Object.keys(daysMap).forEach((date) =>
-    clickHistory.push({ date, clicks: daysMap[date] }),
+    preClickHistory.push({ date, preClicks: daysMap[date] }),
   );
 
   // Devices Breakdown
@@ -799,10 +795,10 @@ export default function AnalytcsDashboard() {
       geoDataMap[countryName] = {
         country: countryName,
         countryCode,
-        clicks: 0,
+        preClicks: 0,
       };
     }
-    geoDataMap[countryName].clicks += 1;
+    geoDataMap[countryName].preClicks += 1;
   });
 
   const getFlagEmoji = (code) => {
@@ -819,37 +815,37 @@ export default function AnalytcsDashboard() {
   };
 
   const geoData = Object.values(geoDataMap)
-    .sort((a, b) => b.clicks - a.clicks)
+    .sort((a, b) => b.preClicks - a.preClicks)
     .map((g) => ({
       country: g.country,
       flag: getFlagEmoji(g.countryCode),
-      clicks: g.clicks,
+      preClicks: g.preClicks,
     }));
 
   const finalGeoData = geoData;
 
 
 
-  const topLinks = [...links].sort((a, b) => b.clicks - a.clicks).slice(0, 5);
+  const topLinks = [...links].sort((a, b) => b.preClicks - a.preClicks).slice(0, 5);
 
   const isDefaultDateRange = startDate === defaultStartDate && endDate === defaultEndDate;
 
   let dateBadgeText = "Last 7 Days";
-  let dateDescriptionText = <>Total clicks recorded across all links in the <strong className="text-slate-900">last 7 days</strong></>;
+  let dateDescriptionText = <>Total pre-clicks recorded across all links in the <strong className="text-slate-900">last 7 days</strong></>;
 
   if (!isDefaultDateRange && startDate && endDate) {
     const formattedStart = new Date(startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     const formattedEnd = new Date(endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     dateBadgeText = `${formattedStart} - ${formattedEnd}`;
-    dateDescriptionText = <>Total clicks recorded across all links from <strong className="text-slate-900">{formattedStart}</strong> to <strong className="text-slate-900">{formattedEnd}</strong></>;
+    dateDescriptionText = <>Total pre-clicks recorded across all links from <strong className="text-slate-900">{formattedStart}</strong> to <strong className="text-slate-900">{formattedEnd}</strong></>;
   } else if (!isDefaultDateRange && startDate) {
     const formattedStart = new Date(startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     dateBadgeText = `From ${formattedStart}`;
-    dateDescriptionText = <>Total clicks recorded across all links since <strong className="text-slate-900">{formattedStart}</strong></>;
+    dateDescriptionText = <>Total pre-clicks recorded across all links since <strong className="text-slate-900">{formattedStart}</strong></>;
   } else if (!isDefaultDateRange && endDate) {
     const formattedEnd = new Date(endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     dateBadgeText = `Until ${formattedEnd}`;
-    dateDescriptionText = <>Total clicks recorded across all links up to <strong className="text-slate-900">{formattedEnd}</strong></>;
+    dateDescriptionText = <>Total pre-clicks recorded across all links up to <strong className="text-slate-900">{formattedEnd}</strong></>;
   }
 
   return (
@@ -874,7 +870,7 @@ export default function AnalytcsDashboard() {
                 const urlObj = new URL(l.original);
                 const campaign = urlObj.searchParams.get("utm_campaign");
                 if (campaign && campaign.trim()) linkCampaigns.add(campaign.trim());
-              } catch { }
+              } catch {}
               if (Array.isArray(l.campaigns)) {
                 l.campaigns.forEach((c) => {
                   const name = typeof c === "string" ? c : c?.name;
@@ -904,11 +900,11 @@ export default function AnalytcsDashboard() {
         />
 
         {/* ── Main Content Area ── */}
-        <main className="flex-1 min-w-0 md:ml-60 lg:ml-80 px-1.5 sm:px-6 md:px-8 py-6 md:py-8 space-y-6">
+        <main className="flex-1 min-w-0 md:ml-60 lg:ml-80 px-2 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 space-y-4 md:space-y-6">
           {/* Top Header */}
           <main className="flex items-center justify-between">
             <div>
-              <div className="flex items-center justify-between gap-1 md:gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <button
                   className="md:hidden p-2 rounded-xl border border-slate-200 bg-white shadow-sm text-slate-600 hover:bg-slate-50 shrink-0"
                   onClick={() => setSidebarOpen(true)}
@@ -917,17 +913,16 @@ export default function AnalytcsDashboard() {
                 </button>
 
                 <div className="min-w-0">
-                  <h1 className="text-sm md:text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 truncate">
-                    Redirected Link Dashboard
+                  <h1 className="text-sm xl:text-xl md:text-2xl font-extrabold text-slate-900 truncate">
+                    Non-Redirected Analytics
                   </h1>
-                  <p className="text-slate-500 text-xs text-xs mt-0.5">
-                    Understand user engagement and link performance globally.
+                  <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+                    See Non-Redirected traffic on Links.
                   </p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-
+            <div>
               <button
                 onClick={() => setFilterOpen(!filterOpen)}
                 className={`px-3 py-2 border rounded-xl shadow-sm cursor-pointer flex items-center gap-2 transition-colors ${filterOpen ? "bg-indigo-50 border-indigo-200 text-indigo-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
@@ -1001,31 +996,21 @@ export default function AnalytcsDashboard() {
           )}
 
           {/* Stats Cards */}
-          <div className={`grid grid-cols-2 sm:grid-cols-3 ${canViewPreClicks ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-2.5 sm:gap-4`}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 xl:gap-4">
             <Link to="/dashboard">
               <StatCard
                 icon={<LinkIcon size={18} className="text-indigo-600" />}
-                label="Total Links"
+                label="Total Links "
                 value={totalUrls.toLocaleString()}
                 sub="Created URLs"
               />
             </Link>
-
             <StatCard
               icon={<MousePointerClick size={18} className="text-orange-500" />}
-              label="Redirected Clicks"
-              value={totalClicks.toLocaleString()}
+              label="Total Non-Redirect Clicks"
+              value={totalPreClicks.toLocaleString()}
               sub="All time traffic"
             />
-            {canViewPreClicks && <Link to="/dashboard/preclick">
-              <StatCard
-                icon={<MousePointerClick size={18} className="text-orange-500" />}
-                label="Non-Redirected Clicks"
-                value={totalPreClicks.toLocaleString()}
-                sub="All time traffic"
-              />
-            </Link>}
-
             <Link to="/dashboard" state={{ filter: "Active" }}><StatCard
               icon={<Activity size={18} className="text-green-500" />}
               label="Active Links"
@@ -1042,31 +1027,31 @@ export default function AnalytcsDashboard() {
             </Link>
           </div>
 
-          {/* Clicks Over Time Aggregated Chart */}
-          <Card className="p-3 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 xl:mb-5 mb-2">
+          {/* Pre-clicks Over Time Aggregated Chart */}
+          <Card className="p-3 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
               <div>
-                <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                <h2 className="text-sm md:text-base font-bold text-slate-900">
                   Aggregate Traffic Trend
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-[10px] md:text-xs text-slate-400">
                   {dateDescriptionText}
                 </p>
               </div>
               {isDefaultDateRange && (
-                <div className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full w-max">
+                <div className="text-xs font-semibold text-indigo-600 bg-indigo-50  px-1 py-0.5  md:px-2.5 md:py-1 rounded-full w-max">
                   {dateBadgeText}
                 </div>
               )}
             </div>
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={260}>
               <AreaChart
-                data={clickHistory}
+                data={preClickHistory}
                 margin={{ top: 4, right: 0, left: -20, bottom: 0 }}
               >
                 <defs>
                   <linearGradient
-                    id="globalClickGrad"
+                    id="globalPreClickGrad"
                     x1="0"
                     y1="0"
                     x2="0"
@@ -1091,10 +1076,10 @@ export default function AnalytcsDashboard() {
                 <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
-                  dataKey="clicks"
+                  dataKey="preClicks"
                   stroke="#4F46E5"
                   strokeWidth={2.5}
-                  fill="url(#globalClickGrad)"
+                  fill="url(#globalPreClickGrad)"
                   dot={{ r: 4, fill: "#4F46E5", strokeWidth: 0 }}
                   activeDot={{ r: 6 }}
                 />
@@ -1103,13 +1088,13 @@ export default function AnalytcsDashboard() {
           </Card>
 
           {/* Referrers + Devices Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-6">
             {/* Referrer Breakdown */}
-            <Card className="p-4 sm:p-6">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
+            <Card className="p-2 md:p-6">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 mb-3">
                 Browser Breakdown
               </h2>
-              <p className="text-xs text-slate-400 mb-4">
+              <p className="text-[10px] md:text-xs text-slate-400 mb-5">
                 Hits per browser — Chrome, Edge, Safari and more
               </p>
               {referrerData.length > 0 ? (
@@ -1170,29 +1155,29 @@ export default function AnalytcsDashboard() {
                     No referrer data yet
                   </p>
                   <p className="text-xs text-slate-300 mt-1">
-                    Data will appear once your links get clicks
+                    Data will appear once visitors open your links
                   </p>
                 </div>
               )}
             </Card>
 
             {/* Device Breakdown */}
-            <Card className="p-4 sm:p-6">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
+            <Card className="p-2 md:p-6">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 mb-1">
                 Device Breakdown
               </h2>
-              <p className="text-xs text-slate-400 mb-4">
-                Distribution of user device types across all clicks
+              <p className="text-[10px] md:text-xs text-slate-400 mb-5">
+                Distribution of user device types across all pre-clicks
               </p>
               {finalDeviceData.length > 0 ? (
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <ResponsiveContainer width="100%" height={180} className="max-w-[220px]">
+                <div className="flex items-center md:gap-4 flex-col md:flex-row" >
+                  <ResponsiveContainer width="55%" height={180}>
                     <PieChart>
                       <Pie
                         data={finalDeviceData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={45}
+                        innerRadius={50}
                         outerRadius={70}
                         paddingAngle={3}
                         dataKey="value"
@@ -1211,9 +1196,9 @@ export default function AnalytcsDashboard() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="space-y-2 w-full sm:w-auto flex-1">
+                  <div className="space-y-2 flex-1 flex-col md:flex-row">
                     {finalDeviceData.map((d, i) => (
-                      <div key={d.name} className="flex items-center gap-2">
+                      <div key={d.name} className="flex items-center gap-2 ">
                         <div
                           className="w-3 h-3 rounded-sm shrink-0"
                           style={{ backgroundColor: COLORS[i % COLORS.length] }}
@@ -1235,7 +1220,7 @@ export default function AnalytcsDashboard() {
                     No device data yet
                   </p>
                   <p className="text-xs text-slate-300 mt-1">
-                    Device stats will show once your links get clicks
+                    Device stats will show once visitors open your links
                   </p>
                 </div>
               )}
@@ -1243,36 +1228,36 @@ export default function AnalytcsDashboard() {
           </div>
 
           {/* Geographic Breakdown & Top Links Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid lg:grid-cols-3 gap-2 md:gap-6">
             {/* Country Share */}
-            <Card className="p-4 sm:p-6 lg:col-span-1">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
+            <Card className="p-3 xl:p-6 lg:col-span-1">
+              <h2 className="text-sm md:text-base font-bold text-slate-900 mb-1">
                 Geographic Share
               </h2>
-              <p className="text-xs text-slate-400 mb-4">
-                Estimated visitor origins based on click patterns
+              <p className="text-[10px] md:text-xs text-slate-400 mb-4">
+                Estimated visitor origins based on pre-click patterns
               </p>
               {finalGeoData.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   {finalGeoData.map((geo, i) => {
-                    const max = finalGeoData[0]?.clicks || 1;
-                    const pct = Math.round((geo.clicks / max) * 100);
+                    const max = finalGeoData[0]?.preClicks || 1;
+                    const pct = Math.round((geo.preClicks / max) * 100);
                     return (
                       <div
                         key={geo.country}
                         className="flex items-center gap-3"
                       >
-                        <span className="text-lg sm:text-xl w-6 text-center shrink-0">
+                        <span className="text-xs md:text-xl w-6 text-center shrink-0">
                           {geo.flag}
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-slate-700 font-semibold truncate">
+                            <span className="text-[10px] md:text-sm text-slate-700 font-semibold truncate">
                               {geo.country}
                             </span>
 
-                            <span className="text-xs font-bold text-slate-800 ml-2 shrink-0">
-                              {geo.clicks.toLocaleString()}
+                            <span className="text-[10px] md:text-sm font-bold text-slate-800 ml-2">
+                              {geo.preClicks.toLocaleString()}
                             </span>
                           </div>
                           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -1303,23 +1288,23 @@ export default function AnalytcsDashboard() {
                     No geographic data yet
                   </p>
                   <p className="text-xs text-slate-300 mt-1">
-                    Country stats appear after clicks
+                    Country stats appear after pre-clicks
                   </p>
                 </div>
               )}
             </Card>
 
             {/* Top Performing Links */}
-            <Card className="p-4 sm:p-6 lg:col-span-2 overflow-hidden min-w-0">
+            <Card className="p-3 xl:p-6 lg:col-span-2 overflow-hidden min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <h2 className="text-base font-bold text-slate-900">
+                <h2 className="text-sm md:text-base font-bold text-slate-900">
                   Top Performing Links
                 </h2>
-                <div className="text-xs font-medium text-slate-400">
-                  Sorted by clicks
+                <div className="text-[10px] md:text-xs font-medium text-slate-400">
+                  Sorted by pre-clicks
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mb-4">
+              <p className="text-[10px] md:text-xs text-slate-400 mb-4">
                 Your most popular shortened URLs and their settings
               </p>
 
@@ -1331,7 +1316,7 @@ export default function AnalytcsDashboard() {
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
                       <th className="py-2.5 pr-3">Short Link</th>
-                      <th className="py-2.5 px-3 text-right">Clicks</th>
+                      <th className="py-2.5 px-3 text-right">Pre-clicks</th>
                       <th className="py-2.5 px-3 text-center">Status</th>
                       <th className="py-2.5 px-3 text-center">Labels</th>
                       <th className="py-2.5 pl-3 text-right">Actions</th>
@@ -1362,7 +1347,7 @@ export default function AnalytcsDashboard() {
                             </div>
                           </td>
                           <td className="py-3 px-3 text-right font-bold text-slate-800">
-                            {link.clicks.toLocaleString()}
+                            {link.preClicks.toLocaleString()}
                           </td>
                           <td className="py-3 px-3 text-center">
                             <button
@@ -1424,8 +1409,8 @@ export default function AnalytcsDashboard() {
                                 <QrCode size={13} />
                               </button>
                               <Link
-                                to={`/analytics/${link.id}`}
-                                title="Detailed Analytics"
+                                to={`/analytics/${link.id}?view=preclick`}
+                                title="Detailed Pre-click Analytics"
                                 className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                               >
                                 <BarChart2 size={13} />

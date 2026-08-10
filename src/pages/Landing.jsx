@@ -75,7 +75,7 @@ export default function Landing() {
 
     if (token) {
       try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const baseUrl = env.BACKEND_URL;
         const res = await fetch(`${baseUrl}/urls`, {
           method: 'POST',
           headers: {
@@ -106,7 +106,6 @@ export default function Landing() {
       setTimeout(() => {
         const slug = generateSlug()
         const shortenedUrl = `${SHORTENER_DOMAIN}/${slug}`
-        console.log("Generated Short URL:", shortenedUrl)
         setShortened(shortenedUrl)
         setLoading(false)
       }, 700)

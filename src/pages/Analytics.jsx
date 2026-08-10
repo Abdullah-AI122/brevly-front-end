@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import {
   AreaChart,
   Area,
@@ -25,6 +25,8 @@ import {
   Globe,
   Smartphone,
   Zap,
+  Activity,
+  Target,
 } from "lucide-react";
 import Filter from "../components/filter";
 import {
@@ -79,6 +81,10 @@ import {
 import { SHORTENER_DOMAIN } from "../components/Shortner";
 import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
+import { isOwner } from "../ownerAccess";
+import AddToCampaignModal from "../components/AddToCampaignModal";
+import useSocket from "../socket/useSocket";
+import env from "../../Config/env";
 
 const COLORS = ["#4F46E5", "#F97316", "#22C55E", "#EAB308", "#EC4899"];
 
@@ -184,12 +190,12 @@ function StatPill({ icon, label, value }) {
   );
 }
 
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = ({ active, payload, label, metricName = "clicks" }) => {
   if (active && payload?.length) {
     return (
       <div className="bg-slate-900 text-white text-xs px-3 py-2 rounded-xl shadow-lg">
         <div className="font-semibold mb-0.5">{label}</div>
-        <div>{payload[0].value.toLocaleString()} clicks</div>
+        <div>{payload[0].value.toLocaleString()} {metricName}</div>
       </div>
     );
   }
@@ -198,7 +204,11 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 export default function Analytics() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const token = localStorage.getItem("apiToken");
+  const canViewPreClicks = isOwner();
+  const isPreClickView = canViewPreClicks && searchParams.get("view") === "preclick";
+  const metricLabel = isPreClickView ? "Non-Redirected Clicks" : "Redirected Clicks";
 
   // Helper function to format date as YYYY-MM-DD
   const formatDateToString = (date) => {
@@ -273,6 +283,8 @@ export default function Analytics() {
   const [link, setLink] = useState(null);
   const [accountLabels, setAccountLabels] = useState({});
   const [copied, setCopied] = useState(false);
+  const [allLinks, setAllLinks] = useState([]);
+  const [campaignModalLink, setCampaignModalLink] = useState(null);
 
   useEffect(() => {
     if (filterOpen) {
@@ -295,14 +307,24 @@ export default function Analytics() {
     async function fetchAnalytics(background = false) {
       try {
         if (!background) setLoading(true);
-        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const baseUrl = env.BACKEND_URL;
         const res = await fetch(`${baseUrl}/urls`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+        if (res.status === 401) {
+          localStorage.removeItem("apiToken");
+          localStorage.removeItem("userEmail");
+          localStorage.removeItem("userName");
+          window.location.href = "/login";
+          return;
+        }
         const data = await res.json();
         if (data.success) {
+          if (data.urls) {
+            setAllLinks(data.urls);
+          }
           if (data.labels) {
             setAccountLabels(data.labels);
           }
@@ -310,6 +332,9 @@ export default function Analytics() {
           if (match) {
             setLink({
               ...match,
+              clickLogs: isPreClickView
+                ? match.preClickLogs || []
+                : match.clickLogs || [],
               short: `${SHORTENER_DOMAIN}/${match.shortCode}`,
               original: match.originalUrl,
               labels: match.labels || [],
@@ -336,14 +361,31 @@ export default function Analytics() {
     }
 
     fetchAnalytics();
+  }, [token, id, isPreClickView]);
 
-    // Poll for real-time analytics updates every 3 seconds
-    const interval = setInterval(() => {
-      fetchAnalytics(true);
-    }, 3000);
+  // ── Real-time Socket.IO listener (replaces polling) ──────────
+  useSocket("analytics:updated", (updatedUrl) => {
+    if (!updatedUrl) return;
 
-    return () => clearInterval(interval);
-  }, [token, id]);
+    // Update the allLinks array
+    setAllLinks((prev) =>
+      prev.map((u) => (u._id === updatedUrl._id ? updatedUrl : u))
+    );
+
+    // If this is the URL we're currently viewing, patch detail state
+    if (updatedUrl._id === id) {
+      setLink((prev) => ({
+        ...prev,
+        ...updatedUrl,
+        clickLogs: isPreClickView
+          ? updatedUrl.preClickLogs || []
+          : updatedUrl.clickLogs || [],
+        short: `${SHORTENER_DOMAIN}/${updatedUrl.shortCode}`,
+        original: updatedUrl.originalUrl,
+        labels: updatedUrl.labels || [],
+      }));
+    }
+  });
 
   function handleCopy() {
     if (link) {
@@ -358,7 +400,7 @@ export default function Analytics() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-4"></div>
         <p className="text-slate-500 font-semibold text-sm">
-          Loading dynamic click logs...
+          Loading {isPreClickView ? "pre-click" : "click"} logs...
         </p>
       </div>
     );
@@ -517,62 +559,101 @@ export default function Analytics() {
   return (
     <div className="min-h-screen bg-slate-50">
       {shareLink && <ShareModal link={shareLink} onClose={() => setShareLink(null)} />}
+      {campaignModalLink && (
+        <AddToCampaignModal
+          link={campaignModalLink}
+          existingCampaigns={(() => {
+            const campaignsMap = {};
+            allLinks.forEach((l) => {
+              const linkCampaigns = new Set();
+              try {
+                const urlObj = new URL(l.originalUrl);
+                const campaign = urlObj.searchParams.get("utm_campaign");
+                if (campaign && campaign.trim()) linkCampaigns.add(campaign.trim());
+              } catch {}
+              if (Array.isArray(l.campaigns)) {
+                l.campaigns.forEach((c) => {
+                  const name = typeof c === "string" ? c : c?.name;
+                  if (name && name.trim()) linkCampaigns.add(name.trim());
+                });
+              }
+              linkCampaigns.forEach((name) => {
+                if (!campaignsMap[name]) campaignsMap[name] = { name, linksCount: 0 };
+                campaignsMap[name].linksCount += 1;
+              });
+            });
+            return Object.values(campaignsMap).sort((a, b) => b.linksCount - a.linksCount);
+          })()}
+          token={token}
+          onClose={() => setCampaignModalLink(null)}
+          onSuccess={() => {}}
+        />
+      )}
       {/* Header */}
       <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-4">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium"
-          >
-            <ArrowLeft size={16} />
-            Dashboard
-          </Link>
-          <div className="w-px h-5 bg-slate-200" />
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <Zap size={13} className="text-white" fill="white" />
-            </div>
-            <span className="font-bold text-slate-900 text-sm">
-              {link.short}
-            </span>
-            {link.labels && link.labels.length > 0 && (
-              <div className="ml-2 pl-2 border-l border-slate-200 flex items-center">
-                <LabelCell link={link} accountLabels={accountLabels} readOnly={true} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-auto min-h-[4rem] py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium shrink-0"
+            >
+              <ArrowLeft size={16} />
+              <span className="hidden xs:inline">Dashboard</span>
+            </Link>
+            <div className="w-px h-5 bg-slate-200 hidden sm:block" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+                <Zap size={13} className="text-white" fill="white" />
               </div>
-            )}
+              <span className="font-bold text-slate-900 text-sm truncate max-w-[180px] sm:max-w-xs md:max-w-md">
+                {link.short}
+              </span>
+              {link.labels && link.labels.length > 0 && (
+                <div className="ml-1 pl-2 border-l border-slate-200 flex items-center shrink-0">
+                  <LabelCell link={link} accountLabels={accountLabels} readOnly={true} />
+                </div>
+              )}
+            </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 hover:text-slate-800 border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
             >
               {copied ? (
                 <>
-                  <Check size={13} className="text-green-500" /> Copied!
+                  <Check size={13} className="text-green-500" /> <span className="hidden sm:inline">Copied!</span>
                 </>
               ) : (
                 <>
-                  <Copy size={13} /> Copy
+                  <Copy size={13} /> <span className="hidden sm:inline">Copy</span>
                 </>
               )}
             </button>
             <button
-              onClick={() => setShareLink(link)}
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-green-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => setCampaignModalLink(link)}
+              className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 hover:text-indigo-600 border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              <FaWhatsapp size={13} /> Share
+              <Target size={13} /> <span className="hidden md:inline">Add to Campaign</span>
+            </button>
+            <button
+              onClick={() => setShareLink(link)}
+              className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 hover:text-green-600 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <FaWhatsapp size={13} /> <span className="hidden sm:inline">Share</span>
             </button>
             <a
               href={link.original}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 hover:text-slate-800 border border-slate-200 px-2.5 sm:px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              <ExternalLink size={13} /> Open
+              <ExternalLink size={13} /> <span className="hidden sm:inline">Open</span>
             </a>
             <button
               onClick={() => setFilterOpen((s) => !s)}
-              className={`px-3 py-1.5 border rounded-lg text-sm flex items-center gap-2 ${filterOpen ? "bg-indigo-50 text-indigo-600 border-indigo-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
+              className={`px-2.5 sm:px-3 py-1.5 border rounded-lg text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 ${filterOpen ? "bg-indigo-50 text-indigo-600 border-indigo-200" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
             >
               <svg
                 className="w-4 h-4"
@@ -587,15 +668,32 @@ export default function Analytics() {
                   strokeLinejoin="round"
                 />
               </svg>
-              <span className="hidden sm:inline text-sm font-medium">
+              <span className="hidden sm:inline text-xs sm:text-sm font-medium">
                 Filters
               </span>
             </button>
+            {canViewPreClicks && (
+              <Link
+                to={`/analytics/${link._id || id}${isPreClickView ? "" : "?view=preclick"}`}
+                className={`px-2.5 sm:px-3 py-1.5 border rounded-lg text-xs sm:text-sm flex items-center gap-1.5 transition-colors ${
+                  isPreClickView
+                    ? "bg-amber-500 text-white border-amber-500 font-semibold"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                }`}
+                title="View Non-Redirected Pre-clicks"
+              >
+                <Activity size={14} />
+                <span className="hidden sm:inline">
+                  {isPreClickView ? "Pre-Clicks View" : "Pre-Clicks"}
+                </span>
+              </Link>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {filterOpen && (
           <Filter
             startDate={pendingStartDate}
@@ -641,31 +739,82 @@ export default function Analytics() {
             setFilterOpen={setFilterOpen}
           />
         )}
-        {/* Link info */}
-        <div className="bg-white border border-slate-100 rounded-2xl px-6 py-4 shadow-sm">
-          <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">
-            Destination
+        {/* Prominent Mode Header Banner */}
+        {canViewPreClicks && (
+          <div className="sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-extrabold text-slate-900">
+                    {isPreClickView ? "Non-Redirected Link Analytics" : "Redirected Link Analytics"}
+                  </span>
+                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${isPreClickView ? "bg-amber-100 text-amber-800" : "bg-indigo-100 text-indigo-800"}`}>
+                    {isPreClickView ? "Non-Redirected" : "Redirected"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {isPreClickView
+                    ? "Showing visitors who opened the non-redirect link."
+                    : "Showing visitors who completed the countdown and were redirected to the target URL."}
+                </p>
+              </div>
+            </div>
+
+            {/* Toggle for Redirect & Non-Redirect Clicks */}
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-inner shrink-0">
+              <Link
+                to={`/analytics/${id}`}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${!isPreClickView
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-white text-slate-900 hover:text-indigo-600"
+                  }`}
+              >
+                Redirected Clicks
+              </Link>
+              <Link
+                to={`/analytics/${id}?view=preclick`}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${isPreClickView
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-white text-slate-900 hover:text-indigo-600"
+                  }`}
+              >
+                Non-Redirected Clicks
+              </Link>
+            </div>
           </div>
-          <a
-            href={link.original}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-700 text-sm hover:text-indigo-600 transition-colors break-all"
-          >
-            {link.original}
-          </a>
-        </div>
+        )}
+
 
         {/* Stats pills */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+
+          {canViewPreClicks ? (
+            <Link
+              to={isPreClickView ? `/analytics/${id}` : `/analytics/${id}?view=preclick`}
+              className="flex items-center gap-3 bg-white border border-l-2 border-l-indigo-600 rounded-2xl border-y-slate-100 border-r-slate-100 p-3 sm:p-5 shadow-sm hover:border-2 hover:border-indigo-600 hover:shadow-indigo-100 transition-all min-w-0"
+            >
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
+                <Activity size={18} className="text-indigo-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] sm:text-xs text-slate-500 font-medium truncate">
+                  {isPreClickView ? "Redirected Clicks" : "Non-Redirected Clicks"}
+                </div>
+                <div className="text-xs sm:text-sm font-bold text-indigo-600 mt-0.5 sm:mt-1 truncate">
+                  Same Link Analytics
+                </div>
+              </div>
+            </Link>
+          ) : (
+            <StatPill
+              icon={<TrendingUp size={18} className="text-orange-500" />}
+              label="In Range"
+              value={filteredLogs.length.toLocaleString()}
+            />
+          )}
           <StatPill
             icon={<MousePointerClick size={18} className="text-indigo-600" />}
-            label="Total Clicks"
-            value={filteredLogs.length.toLocaleString()}
-          />
-          <StatPill
-            icon={<TrendingUp size={18} className="text-orange-500" />}
-            label="In Range"
+            label={`Total ${metricLabel}`}
             value={filteredLogs.length.toLocaleString()}
           />
           <StatPill
@@ -679,11 +828,25 @@ export default function Analytics() {
             value={`${Math.round((mobile / divider) * 100)}%`}
           />
         </div>
+        {/* Link info */}
+        <div className="bg-white border border-slate-100 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 shadow-sm">
+          <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">
+            Destination
+          </div>
+          <a
+            href={link.original}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-700 text-xs sm:text-sm hover:text-indigo-600 transition-colors break-all line-clamp-2"
+          >
+            {link.original}
+          </a>
+        </div>
 
         {/* Click history chart */}
-        <Card className="p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-5">
-            Clicks Over Time
+        <Card className="p-4 sm:p-6">
+          <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-3 sm:mb-5">
+            {metricLabel} Over Time
           </h2>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart
@@ -708,7 +871,7 @@ export default function Analytics() {
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip metricName={metricLabel.toLowerCase()} />} />
               <Area
                 type="monotone"
                 dataKey="clicks"
@@ -723,10 +886,10 @@ export default function Analytics() {
         </Card>
 
         {/* Referrers + Devices row */}
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Referrers bar chart */}
-          <Card className="p-6">
-            <h2 className="text-base font-bold text-slate-900 mb-5">
+          <Card className="p-4 sm:p-6">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-3 sm:mb-5">
               Top Browsers
             </h2>
             <ResponsiveContainer width="100%" height={200}>
@@ -780,24 +943,24 @@ export default function Analytics() {
           </Card>
 
           {/* Device pie chart */}
-          <Card className="p-6">
-            <h2 className="text-base font-bold text-slate-900 mb-5">
+          <Card className="p-4 sm:p-6">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-3 sm:mb-5">
               Device Breakdown
             </h2>
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width="60%" height={200}>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <ResponsiveContainer width="100%" height={180} className="max-w-[220px]">
                 <PieChart>
                   <Pie
                     data={finalDeviceData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
+                    innerRadius={45}
+                    outerRadius={70}
                     paddingAngle={3}
                     dataKey="value"
                   >
                     {finalDeviceData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i]} />
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -810,12 +973,12 @@ export default function Analytics() {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-2">
+              <div className="space-y-2 w-full sm:w-auto flex-1">
                 {finalDeviceData.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-2">
                     <div
-                      className="w-3 h-3 rounded-sm"
-                      style={{ backgroundColor: COLORS[i] }}
+                      className="w-3 h-3 rounded-sm shrink-0"
+                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
                     />
                     <span className="text-xs text-slate-600">{d.name}</span>
                     <span className="text-xs font-bold text-slate-800 ml-auto pl-4">
@@ -829,8 +992,8 @@ export default function Analytics() {
         </div>
 
         {/* Top countries */}
-        <Card className="p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-4">
+        <Card className="p-4 sm:p-6">
+          <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-3 sm:mb-4">
             Top Countries
           </h2>
           <div className="space-y-3">
@@ -838,18 +1001,18 @@ export default function Analytics() {
               const max = finalGeoData[0].clicks || 1;
               const pct = Math.round((geo.clicks / max) * 100);
               return (
-                <div key={geo.country} className="flex items-center gap-4">
-                  <span className="text-xl w-7 text-center">{geo.flag}</span>
+                <div key={geo.country} className="flex items-center gap-3 sm:gap-4">
+                  <span className="text-lg sm:text-xl w-6 sm:w-7 text-center shrink-0">{geo.flag}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-slate-700 font-medium">
+                      <span className="text-xs sm:text-sm text-slate-700 font-medium truncate">
                         {geo.country}
                       </span>
-                      <span className="text-sm font-bold text-slate-800">
+                      <span className="text-xs sm:text-sm font-bold text-slate-800 ml-2 shrink-0">
                         {geo.clicks.toLocaleString()}
                       </span>
                     </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 sm:h-2 bg-slate-100 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{

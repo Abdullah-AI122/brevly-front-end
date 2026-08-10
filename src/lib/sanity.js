@@ -1,10 +1,11 @@
 import { createClient } from '@sanity/client'
+import env from '../../Config/env'
 
 export const sanityClient = createClient({
-  projectId: import.meta.env.VITE_SANITY_PROJECT_ID,
-  dataset: import.meta.env.VITE_SANITY_DATASET,
+  projectId: env.SANITY_PROJECT_ID,
+  dataset: env.SANITY_DATASET,
   useCdn: true,
-  apiVersion: import.meta.env.VITE_SANITY_API_VERSION,
+  apiVersion: env.SANITY_API_VERSION,
 })
 
 export const urlForImage = (source) => {
@@ -16,7 +17,7 @@ export const urlForImage = (source) => {
   const id = parts[1]
   const dimensions = parts[2]
   const extension = parts[3]
-  return `${import.meta.env.VITE_SANITY_CDN_BASE_URL}/${import.meta.env.VITE_SANITY_PROJECT_ID}/${import.meta.env.VITE_SANITY_DATASET}/${id}-${dimensions}.${extension}`
+  return `${env.SANITY_CDN_BASE_URL}/${env.SANITY_PROJECT_ID}/${env.SANITY_DATASET}/${id}-${dimensions}.${extension}`
 }
 
 export const fetchPosts = async () => {

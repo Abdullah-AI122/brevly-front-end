@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Search, Plus, ArrowLeft, Trash2, Check, Zap, MousePointerClick, Palette } from "lucide-react";
+import env from "../../Config/env";
 
 export default function LabelCell({ link, accountLabels = {}, onLabelsChanged, readOnly = false }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,7 +19,7 @@ export default function LabelCell({ link, accountLabels = {}, onLabelsChanged, r
   const [updating, setUpdating] = useState(false);
 
   const token = localStorage.getItem("apiToken");
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL;
+  const baseUrl = env.BACKEND_URL;
 
   // Selected labels on this specific link
   const selectedLabelKeys = link?.labels || [];
