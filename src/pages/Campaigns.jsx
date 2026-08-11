@@ -112,7 +112,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 function DeleteModal({ onConfirm, onCancel, deleting }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={() => !deleting && onCancel()}
     >
       <div
@@ -133,14 +133,14 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 cursor-pointer rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 cursor-pointer rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {deleting ? (
               <svg
@@ -177,7 +177,7 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
 function DeleteCampaignModal({ campaignName, linksCount, onConfirm, onCancel, deleting }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-800 flex items-center justify-center p-4"
       onClick={() => !deleting && onCancel()}
     >
       <div
@@ -241,7 +241,7 @@ function DeleteCampaignModal({ campaignName, linksCount, onConfirm, onCancel, de
 function RemoveFromCampaignConfirmationModal({ linkShort, campaignName, onConfirm, onCancel, processing }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={() => !processing && onCancel()}
     >
       <div
@@ -1676,7 +1676,7 @@ export default function Campaigns() {
                                 </button>
                                 <button
                                   onClick={() => setSelectedCampaign(c.name)}
-                                  className="text-slate-400 hover:text-slate-800 transition-colors p-1"
+                                  className="text-slate-400 hover:text-slate-800 transition-colors p-1 cursor-pointer"
                                 >
                                   <ChevronRight size={16} />
                                 </button>

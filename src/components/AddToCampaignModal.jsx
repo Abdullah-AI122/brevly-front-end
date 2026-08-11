@@ -223,7 +223,7 @@ export default function AddToCampaignModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={() => !saving && onClose()}
     >
       <div
@@ -248,7 +248,7 @@ export default function AddToCampaignModal({
           <button
             onClick={onClose}
             disabled={saving}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded-lg cursor-pointer hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors disabled:opacity-50"
           >
             <X size={18} />
           </button>
@@ -351,7 +351,7 @@ export default function AddToCampaignModal({
                                   setEditNameInput(c.name);
                                 }}
                                 title="Rename Campaign"
-                                className="text-slate-400 hover:text-indigo-600 p-1 rounded hover:bg-slate-50 transition-colors shrink-0"
+                                className="text-slate-400 cursor-pointer hover:text-indigo-600 p-1 rounded hover:bg-slate-50 transition-colors shrink-0"
                               >
                                 <Pencil size={12} />
                               </button>

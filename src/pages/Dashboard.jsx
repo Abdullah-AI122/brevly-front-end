@@ -66,7 +66,7 @@ function StatCard({ icon, label, value, sub, className = "" }) {
 function DeleteModal({ onConfirm, onCancel, deleting }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={() => !deleting && onCancel()}
     >
       <div
@@ -87,14 +87,14 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="flex-1 cursor-pointer py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            className="flex-1 cursor-pointer  py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {deleting ? (
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -414,7 +414,7 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           originalUrl: finalUrl,
-          customAlias: alias,
+          customAlias: alias ? alias.toLowerCase().trim() : undefined,
           password: password || undefined,
           expiresAt: expiresAt || undefined,
         }),
@@ -577,7 +577,7 @@ export default function Dashboard() {
                       type="text"
                       value={alias}
                       onChange={(e) =>
-                        setAlias(e.target.value.replace(/[^a-z0-9-]/gi, ""))
+                        setAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
                       }
                       placeholder="my-link"
                       className="flex-1 py-2.5 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none min-w-0"
