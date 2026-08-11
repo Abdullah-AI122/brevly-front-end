@@ -35,55 +35,6 @@ import {
 } from "lucide-react";
 import { isOwner } from "../ownerAccess";
 import {
-  FaBots,
-  FaConfluence,
-  FaMountainSun,
-  FaSignalMessenger,
-  FaSlack,
-  FaTrello,
-  FaTwitch,
-  FaYahoo,
-} from "react-icons/fa6";
-import {
-  FaDiscord,
-  FaFacebook,
-  FaInstagram,
-  FaLine,
-  FaLinkedin,
-  FaPinterest,
-  FaReddit,
-  FaSignal,
-  FaSnapchat,
-  FaTelegramPlane,
-  FaTiktok,
-  FaTwitter,
-  FaViber,
-  FaWhatsapp,
-  FaYoutube,
-  FaChrome,
-  FaFirefox,
-  FaSafari,
-  FaEdge,
-  FaOpera,
-  FaInternetExplorer,
-  FaFacebookMessenger,
-} from "react-icons/fa";
-import { IoLogoWechat } from "react-icons/io5";
-import { IoIosMail } from "react-icons/io";
-import { PiMicrosoftOutlookLogoDuotone } from "react-icons/pi";
-import { BiLogoMicrosoftTeams } from "react-icons/bi";
-import {
-  SiAsana,
-  SiGmail,
-  SiGooglemeet,
-  SiKik,
-  SiNotion,
-  SiThunderbird,
-  SiZoom,
-  SiTorbrowser,
-  SiBrave,
-} from "react-icons/si";
-import {
   AreaChart,
   Area,
   XAxis,
@@ -104,80 +55,19 @@ import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
 import env from "../../Config/env";
 
+import { FaWhatsapp } from "react-icons/fa6";
+
+import {
+  REFERER_RULES,
+  BROWSER_RULES,
+  detectSource,
+  ALL_RULES,
+  platformIconMap,
+} from "../lib/sourceDetection";
+import QrModal from "../components/ui/QrModal";
+
 const COLORS = ["#4F46E5", "#F97316", "#22C55E", "#EAB308", "#EC4899"];
 
-const REFERER_RULES = [
-  { source: "WhatsApp", pattern: /whatsapp/i, color: "#4F46E5", icon: FaWhatsapp },
-  { source: "Facebook", pattern: /facebook|fbav|fban/i, color: "#4F46E5", icon: FaFacebook },
-  { source: "Instagram", pattern: /instagram/i, color: "#4F46E5", icon: FaInstagram },
-  { source: "TikTok", pattern: /tiktok|bytedance/i, color: "#4F46E5", icon: FaTiktok },
-  { source: "YouTube", pattern: /youtube|youtu\.be/i, color: "#4F46E5", icon: FaYoutube },
-  { source: "LinkedIn", pattern: /linkedin/i, color: "#4F46E5", icon: FaLinkedin },
-  { source: "Twitter", pattern: /twitter|t\.co/i, color: "#4F46E5", icon: FaTwitter },
-  { source: "Reddit", pattern: /reddit/i, color: "#4F46E5", icon: FaReddit },
-  { source: "Pinterest", pattern: /pinterest/i, color: "#4F46E5", icon: FaPinterest },
-  { source: "Snapchat", pattern: /snapchat/i, color: "#4F46E5", icon: FaSnapchat },
-  { source: "Discord", pattern: /discord/i, color: "#4F46E5", icon: FaDiscord },
-  { source: "Telegram", pattern: /telegram|t\.me/i, color: "#4F46E5", icon: FaTelegramPlane },
-  { source: "Teams", pattern: /teams\.microsoft|teams\.cdn\.office|onecdn\.static\.microsoft/i, color: "#4F46E5", icon: BiLogoMicrosoftTeams },
-  { source: "Slack", pattern: /slack/i, color: "#4F46E5", icon: FaSlack },
-  { source: "Gmail", pattern: /mail\.google/i, color: "#4F46E5", icon: SiGmail },
-  { source: "Outlook", pattern: /outlook/i, color: "#4F46E5", icon: PiMicrosoftOutlookLogoDuotone },
-  { source: "WeChat", pattern: /wechat|micromessenger/i, color: "#4F46E5", icon: IoLogoWechat },
-  { source: "Line", pattern: /line/i, color: "#4F46E5", icon: FaLine },
-  { source: "Viber", pattern: /viber/i, color: "#4F46E5", icon: FaViber },
-  { source: "Asana", pattern: /asana/i, color: "#4F46E5", icon: SiAsana },
-  { source: "Trello", pattern: /trello/i, color: "#4F46E5", icon: FaTrello },
-  { source: "Confluence", pattern: /atlassian|confluence/i, color: "#4F46E5", icon: FaConfluence },
-  { source: "Zoom", pattern: /zoom\.us/i, color: "#4F46E5", icon: SiZoom },
-  { source: "Google Meet", pattern: /meet\.google/i, color: "#4F46E5", icon: SiGooglemeet },
-  { source: "Notion", pattern: /notion\.so/i, color: "#4F46E5", icon: SiNotion },
-  { source: "Twitch", pattern: /twitch/i, color: "#4F46E5", icon: FaTwitch },
-  { source: "Yahoo", pattern: /yahoo/i, color: "#4F46E5", icon: FaYahoo },
-  { source: "Signal", pattern: /signal/i, color: "#4F46E5", icon: FaSignal },
-  { source: "Messenger", pattern: /messenger/i, color: "#4F46E5", icon: FaFacebookMessenger },
-];
-
-const BROWSER_RULES = [
-  { source: "Hola Browser", pattern: /Hola/i, color: "#4F46E5", icon: Globe },
-  { source: "Opera", pattern: /Opera|OPR\//i, color: "#4F46E5", icon: FaOpera },
-  { source: "Edge", pattern: /Edg\//i, color: "#4F46E5", icon: FaEdge },
-  { source: "Brave", pattern: /Brave/i, color: "#4F46E5", icon: SiBrave },
-  { source: "Tor", pattern: /TorBrowser/i, color: "#4F46E5", icon: SiTorbrowser },
-  { source: "Firefox", pattern: /Firefox|FxiOS/i, color: "#4F46E5", icon: FaFirefox },
-  { source: "Internet Explorer", pattern: /Trident|MSIE/i, color: "#4F46E5", icon: FaInternetExplorer },
-  { source: "Chrome", pattern: /Chrome|CriOS/i, color: "#4F46E5", icon: FaChrome },
-  { source: "iOS Safari", pattern: /Mobile.*Safari/i, color: "#4F46E5", icon: FaSafari },
-  { source: "Safari", pattern: /Safari/i, color: "#4F46E5", icon: FaSafari },
-];
-
-function detectSource(log) {
-  if (log.source && log.source !== "unknown" && log.source !== "Direct") {
-    return log.source;
-  }
-  const ref = log.referer || "";
-  const ua = log.userAgent || "";
-
-  if (ref) {
-    for (const rule of REFERER_RULES) {
-      if (rule.pattern.test(ref)) return rule.source;
-    }
-  }
-
-  for (const rule of REFERER_RULES) {
-    if (rule.pattern.test(ua)) return rule.source;
-  }
-
-  for (const rule of BROWSER_RULES) {
-    if (rule.pattern.test(ua)) return rule.source;
-  }
-  return "Direct";
-}
-
-const ALL_RULES = [...REFERER_RULES, ...BROWSER_RULES];
-const platformIconMap = Object.fromEntries(
-  ALL_RULES.map((r) => [r.source, r.icon]),
-);
 
 function StatCard({ icon, label, value, sub, className = "" }) {
   return (
@@ -218,104 +108,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function QrModal({ link, onClose }) {
-  const canvasRef = useRef(null);
-  const [qrReady, setQrReady] = useState(false);
-  const [qrError, setQrError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-    setQrReady(false);
-    setQrError("");
-
-    import("qrcode")
-      .then((QRCode) => {
-        if (cancelled || !canvasRef.current) return;
-        QRCode.toCanvas(
-          canvasRef.current,
-          link.short,
-          {
-            width: 200,
-            margin: 2,
-            color: { dark: "#4F46E5", light: "#F8FAFC" },
-          },
-          (err) => {
-            if (cancelled) return;
-            if (err) {
-              setQrError("Failed to generate QR code.");
-            } else {
-              setQrReady(true);
-            }
-          },
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setQrError("Could not load QR library.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [link.short]);
-
-  function handleDownload() {
-    if (!canvasRef.current) return;
-    const dataUrl = canvasRef.current.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `${link.slug}-qr.png`;
-    a.click();
-  }
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="font-extrabold text-slate-900 text-lg mb-1">QR Code</h3>
-        <p className="text-slate-500 text-sm mb-5 break-all">{link.short}</p>
-
-        <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-center mb-5 min-h-[216px]">
-          {qrError ? (
-            <p className="text-xs text-red-500">{qrError}</p>
-          ) : (
-            <>
-              {!qrReady && (
-                <div className="absolute">
-                  <div className="w-8 h-8 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                </div>
-              )}
-              <canvas
-                ref={canvasRef}
-                className={`rounded-lg transition-opacity duration-300 ${qrReady ? "opacity-100" : "opacity-0"}`}
-              />
-            </>
-          )}
-        </div>
-
-        {!qrError && (
-          <button
-            onClick={handleDownload}
-            disabled={!qrReady}
-            className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl mb-3 transition-colors"
-          >
-            Download PNG
-          </button>
-        )}
-        <button
-          onClick={onClose}
-          className="block w-full text-center text-slate-500 hover:text-slate-800 text-sm py-2 transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function DeleteModal({ onConfirm, onCancel, deleting }) {
   return (
