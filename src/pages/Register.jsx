@@ -63,6 +63,10 @@ export default function Register() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    if (!form.password || form.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch(`${API}/register`, {
@@ -304,7 +308,7 @@ export default function Register() {
                     id="agree"
                     checked={agreed}
                     onChange={e => setAgreed(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   <label htmlFor="agree" className="text-sm text-slate-600 leading-snug">
                     I agree to the{' '}
