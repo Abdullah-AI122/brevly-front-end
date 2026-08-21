@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Zap, BarChart2, Shield, Globe, Copy, Check,
@@ -15,6 +15,9 @@ import { FaArrowRight } from 'react-icons/fa6'
 import Footer from '../components/footer'
 import ComparisonSection from '../components/Comparison.jsx'
 import CTASection from '../components/cta.jsx'
+import { setCookie, eraseCookie } from '../lib/cookies'
+import env from '../../Config/env'
+
 
 const FEATURES = [
   { icon: <Zap size={20} />, tone: 'indigo', title: 'Lightning Fast Shortening', desc: 'Turn any URL into a clean short link in under a second. No friction, no account needed for quick shares.' },
@@ -59,10 +62,73 @@ export default function Landing() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(null)
+  const [isExpired, setIsExpired] = useState(false)
 
   function isValidUrl(str) {
     try { new URL(str); return true } catch { return false }
   }
+
+  function formatTime(seconds) {
+    if (seconds === null || seconds < 0) return '02:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  function handleTimerExpired() {
+    setIsExpired(true)
+    setTimeLeft(0)
+    eraseCookie('brevly_pending_url')
+    localStorage.removeItem('pending_url')
+    localStorage.removeItem('pending_url_expires_at')
+    localStorage.removeItem('pending_slug')
+  }
+
+  // Restore countdown timer on mount if pending URL exists
+  useEffect(() => {
+    const token = localStorage.getItem('apiToken')
+    if (token) return
+
+    const savedPending = localStorage.getItem('pending_url')
+    const savedExpires = localStorage.getItem('pending_url_expires_at')
+    const savedSlug = localStorage.getItem('pending_slug')
+
+    if (savedPending && savedExpires) {
+      const now = Date.now()
+      const diff = Math.floor((Number(savedExpires) - now) / 1000)
+      if (diff > 0) {
+        setTimeLeft(diff)
+        setIsExpired(false)
+        setShortened(`${SHORTENER_DOMAIN}/${savedSlug || generateSlug()}`)
+      } else {
+        handleTimerExpired()
+      }
+    }
+  }, [])
+
+  // Live 1-second countdown interval
+  useEffect(() => {
+    if (timeLeft === null || isExpired) return
+
+    if (timeLeft <= 0) {
+      handleTimerExpired()
+      return
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval)
+          handleTimerExpired()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [timeLeft, isExpired])
 
   async function handleShorten(e) {
     e.preventDefault()
@@ -106,7 +172,16 @@ export default function Landing() {
       setTimeout(() => {
         const slug = generateSlug()
         const shortenedUrl = `${SHORTENER_DOMAIN}/${slug}`
+        const expiresAt = Date.now() + 120000; // 2 minutes (120 seconds)
+
         setShortened(shortenedUrl)
+        setCookie('brevly_pending_url', url, 2 / (24 * 60)) // 2 minutes cookie
+        localStorage.setItem('pending_url', url)
+        localStorage.setItem('pending_url_expires_at', String(expiresAt))
+        localStorage.setItem('pending_slug', slug)
+
+        setTimeLeft(120)
+        setIsExpired(false)
         setLoading(false)
       }, 700)
     }
@@ -186,7 +261,17 @@ export default function Landing() {
 
               {shortened && (
                 <div className="mt-4 border-t border-dashed border-slate-200 pt-4 animate-[riseIn_.4s_ease]">
-                  <div className="text-[0.7rem] font-semibold tracking-wide text-slate-500 uppercase mb-2">Your short link</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[0.7rem] font-semibold tracking-wide text-slate-500 uppercase">
+                      Your short link
+                    </div>
+                    {!localStorage.getItem('apiToken') && (
+                      <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 font-mono font-semibold text-xs px-2.5 py-1 rounded-full border border-indigo-100">
+                        <Clock size={12} className="animate-pulse text-indigo-600" />
+                        <span>{isExpired ? 'Expired' : `Expires in ${formatTime(timeLeft)}`}</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <div className="flex-1 min-w-[180px] bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 font-semibold text-indigo-700 text-base truncate">
                       {shortened}
@@ -208,11 +293,18 @@ export default function Landing() {
                         <Link to="/dashboard" className="text-indigo-600 font-semibold hover:underline">Dashboard</Link>{' '}
                         to track clicks, customize UTMs, set passwords, and view visitor logs.
                       </span>
+                    ) : isExpired ? (
+                      <span>
+                        <strong className="text-red-900">⌛ Guest link expired!</strong>{' '}
+                        <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Create a free account</Link>{' '}
+                        to make permanent links that never expire.
+                      </span>
                     ) : (
                       <span>
-                        <strong className="text-amber-900">This link works, but it is not tracked yet.</strong>{' '}
+                        <strong className="text-amber-900">URL saved locally!</strong>{' '}
+                        <Link to="/login" className="text-indigo-600 font-semibold hover:underline">Sign in</Link> or{' '}
                         <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Create a free account</Link>{' '}
-                        to see who's clicking, counted accurately.
+                        to push this link into your database and view it on your dashboard.
                       </span>
                     )}
                   </div>

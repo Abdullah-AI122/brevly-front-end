@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import useSocket from "../socket/useSocket";
-import { Copy,Check,BarChart2,Trash2,Link as LinkIcon, MousePointerClick,ToggleLeft,ToggleRight,QrCode,Menu,AlertCircle,Smartphone,Globe,Activity,Funnel, Target,
+import { Copy,Check,BarChart2,Trash2,Link as LinkIcon, MousePointerClick,ToggleLeft,ToggleRight,QrCode,Menu,AlertCircle,Smartphone,Globe,Activity,Funnel, Target, X,
 } from "lucide-react";
 import {AreaChart,Area,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer,PieChart,Pie,Cell,BarChart,Bar,
 } from "recharts";
@@ -12,6 +12,7 @@ import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
 import { isOwner } from "../ownerAccess";
 import AddToCampaignModal from "../components/AddToCampaignModal";
+import { isLinkNew, markLinkAsViewed } from "../lib/newLinkTracker";
 
 const FREE_LIMIT = 100;
 import {FaWhatsapp} from "react-icons/fa";
@@ -311,11 +312,12 @@ export default function AnalytcsDashboard() {
       }
       const data = await res.json();
       if (data.success) {
-        setRawUrls(data.urls);
+        const sortedUrls = [...(data.urls || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setRawUrls(sortedUrls);
         if (data.labels) {
           setAccountLabels(data.labels);
         }
-        const mapped = data.urls.map((u) => ({
+        const mapped = sortedUrls.map((u) => ({
           id: u._id,
           slug: u.shortCode,
           original: u.originalUrl,
@@ -323,6 +325,7 @@ export default function AnalytcsDashboard() {
           clicks: u.clicks,
           preClicks: u.preClicks || 0,
           preClickLogs: u.preClickLogs || [],
+          rawCreatedAt: u.createdAt,
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
@@ -568,7 +571,7 @@ export default function AnalytcsDashboard() {
 
 
 
-  const topLinks = [...links].sort((a, b) => b.clicks - a.clicks).slice(0, 5);
+  const topLinks = [...links].sort((a, b) => new Date(b.rawCreatedAt || b.createdAt) - new Date(a.rawCreatedAt || a.createdAt));
 
   const isDefaultDateRange = startDate === defaultStartDate && endDate === defaultEndDate;
 
@@ -1086,14 +1089,37 @@ export default function AnalytcsDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      topLinks.map((link) => (
+                      topLinks.map((link) => {
+                        const isNew = isLinkNew(link);
+                        return (
                         <tr
                           key={link.id}
+                          onClick={() => {
+                            if (isNew) {
+                              markLinkAsViewed(link.id);
+                              setLinks((prev) => [...prev]);
+                            }
+                          }}
                           className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors text-sm"
                         >
-                          <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[200px] truncate">
+                          <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[220px]">
                             <div>
-                              <div className="truncate">{link.short}</div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="truncate">{link.short}</div>
+                                {isNew && (
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      markLinkAsViewed(link.id);
+                                      setLinks((prev) => [...prev]);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full cursor-pointer hover:bg-amber-600 transition-colors shadow-sm animate-pulse"
+                                    title="New link! Click to dismiss ticket"
+                                  >
+                                    NEW <X size={10} />
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[10px] text-slate-400 font-normal truncate mt-0.5">
                                 {link.original}
                               </div>
@@ -1178,7 +1204,8 @@ export default function AnalytcsDashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))
+                      );
+                      })
                     )}
                   </tbody>
                 </table>

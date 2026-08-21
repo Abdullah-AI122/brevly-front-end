@@ -41,6 +41,8 @@ import AddToCampaignModal from "../components/AddToCampaignModal";
 import useSocket from "../socket/useSocket";
 import env from "../../Config/env";
 import QrModal from "../components/ui/QrModal";
+import { syncPendingUrl } from "../lib/sync";
+import { addNewLinkId, isLinkNew, markLinkAsViewed } from "../lib/newLinkTracker";
 
 const baseUrl = env.BACKEND_URL;
 
@@ -261,7 +263,11 @@ export default function Dashboard() {
       return;
     }
 
-    fetchLinks();
+    const loadDashboardData = async () => {
+      await syncPendingUrl(token);
+      fetchLinks();
+    };
+    loadDashboardData();
   }, [token]);
 
   // ── Real-time Socket.IO listener (replaces polling) ──────────
@@ -303,13 +309,15 @@ export default function Dashboard() {
         if (data.labels) {
           setAccountLabels(data.labels);
         }
-        const mapped = data.urls.map((u) => ({
+        const sortedUrls = [...(data.urls || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const mapped = sortedUrls.map((u) => ({
           id: u._id,
           slug: u.shortCode,
           original: u.originalUrl,
           short: `${SHORTENER_DOMAIN}/${u.shortCode}`,
           clicks: u.clicks,
           preClicks: u.preClicks || 0,
+          rawCreatedAt: u.createdAt,
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
@@ -421,6 +429,9 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.url?._id) {
+          addNewLinkId(data.url._id);
+        }
         await fetchLinks();
         setUrl("");
         setAlias("");
@@ -441,16 +452,19 @@ export default function Dashboard() {
     }
   }
 
-  const filtered = links.filter((l) => {
-    const matchesSearch =
-      l.slug.toLowerCase().includes(search.toLowerCase()) ||
-      l.original.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter =
-      selectedFilter === "All" ||
-      (selectedFilter === "Active" && l.active) ||
-      (selectedFilter === "Inactive" && !l.active);
-    return matchesSearch && matchesFilter;
-  });
+  const filtered = links
+    .filter((l) => {
+      const matchesSearch =
+        l.slug.toLowerCase().includes(search.toLowerCase()) ||
+        l.original.toLowerCase().includes(search.toLowerCase());
+      const matchesFilter =
+        selectedFilter === "All" ||
+        (selectedFilter === "Active" && l.active) ||
+        (selectedFilter === "Inactive" && !l.active);
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => new Date(b.rawCreatedAt || b.createdAt) - new Date(a.rawCreatedAt || a.createdAt));
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -833,9 +847,17 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((link, i) => (
+                    {filtered.map((link, i) => {
+                      const isNew = isLinkNew(link);
+                      return (
                       <tr
                         key={link.id}
+                        onClick={() => {
+                          if (isNew) {
+                            markLinkAsViewed(link.id);
+                            setLinks((prev) => [...prev]);
+                          }
+                        }}
                         className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${i === filtered.length - 1 ? "border-b-0" : ""
                           }`}
                       >
@@ -846,8 +868,23 @@ export default function Dashboard() {
                               <Zap size={12} className="text-indigo-500" fill="currentColor" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-indigo-600 whitespace-nowrap">
-                                {link.short}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="text-sm font-semibold text-indigo-600 whitespace-nowrap">
+                                  {link.short}
+                                </div>
+                                {isNew && (
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      markLinkAsViewed(link.id);
+                                      setLinks((prev) => [...prev]);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full cursor-pointer hover:bg-amber-600 transition-colors shadow-sm animate-pulse"
+                                    title="New link! Click to dismiss ticket"
+                                  >
+                                    NEW <X size={10} />
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-xs text-slate-400 whitespace-nowrap">
@@ -967,7 +1004,8 @@ export default function Dashboard() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>

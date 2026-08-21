@@ -6,7 +6,6 @@ import {
   Copy,
   Check,
   BarChart2,
-  ExternalLink,
   Trash2,
   Link as LinkIcon,
   TrendingUp,
@@ -54,6 +53,7 @@ import Filter from "../components/filter";
 import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
 import env from "../../Config/env";
+import { isLinkNew, markLinkAsViewed, addNewLinkId } from "../lib/newLinkTracker";
 
 import { FaWhatsapp } from "react-icons/fa6";
 
@@ -525,7 +525,8 @@ export default function Campaigns() {
         if (data.labels) {
           setAccountLabels(data.labels);
         }
-        const mapped = data.urls.map((u) => ({
+        const sortedUrls = [...(data.urls || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const mapped = sortedUrls.map((u) => ({
           id: u._id,
           slug: u.shortCode,
           original: u.originalUrl,
@@ -533,6 +534,7 @@ export default function Campaigns() {
           clicks: u.clicks,
           preClicks: u.preClicks || 0,
           preClickLogs: u.preClickLogs || [],
+          rawCreatedAt: u.createdAt,
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
@@ -1070,6 +1072,9 @@ export default function Campaigns() {
         });
         const data = await res.json();
         if (data.success) {
+          if (data.url?._id) {
+            addNewLinkId(data.url._id);
+          }
           await fetchUrls();
           setDestUrl("");
           setCampaignName("");
@@ -1753,7 +1758,8 @@ export default function Campaigns() {
                       </tr>
                     </thead>
                     <tbody>
-                      {campaignLinks.map((link) => {
+                      {[...campaignLinks].sort((a, b) => new Date(b.rawCreatedAt || b.createdAt) - new Date(a.rawCreatedAt || a.createdAt)).map((link) => {
+                        const isNew = isLinkNew(link);
                         const pairSource = campaignSourceMap[`${link.id}::${selectedCampaign}`] || getSourceParam(link.original);
                         const pairMedium = campaignMediumMap[`${link.id}::${selectedCampaign}`] || getMediumParam(link.original);
                         const displayUrl = getCampaignDisplayUrl(link.original, selectedCampaign, pairSource);
@@ -1767,12 +1773,33 @@ export default function Campaigns() {
                         return (
                           <tr
                             key={link.id}
+                            onClick={() => {
+                              if (isNew) {
+                                markLinkAsViewed(link.id);
+                                setLinks((prev) => [...prev]);
+                              }
+                            }}
                             className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors text-sm"
                           >
-                            <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[240px] truncate">
+                            <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[260px]">
                               <div>
-                                <div className="truncate font-mono text-xs" title={campaignShortUrl}>
-                                  {campaignShortUrl}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="truncate font-mono text-xs" title={campaignShortUrl}>
+                                    {campaignShortUrl}
+                                  </div>
+                                  {isNew && (
+                                    <span
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markLinkAsViewed(link.id);
+                                        setLinks((prev) => [...prev]);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full cursor-pointer hover:bg-amber-600 transition-colors shadow-sm animate-pulse"
+                                      title="New link! Click to dismiss ticket"
+                                    >
+                                      NEW <X size={10} />
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-[10px] text-slate-400 font-normal truncate mt-0.5" title={link.original}>
                                   {link.original}
