@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import { isLoggedIn } from "../lib/session";
 
 export default function CTASection({
   heading,
@@ -7,6 +8,10 @@ export default function CTASection({
   buttonText = "Get Started",
   buttonLink = "/register",
 }) {
+  const loggedIn = isLoggedIn();
+  const resolvedButtonText = loggedIn ? "Go to Dashboard" : buttonText;
+  const resolvedButtonLink = loggedIn ? "/dashboard" : buttonLink;
+
   return (
     <section className="py-10 md:py-20 px-6 max-w-[1152px] mx-auto">
       <div
@@ -29,16 +34,18 @@ export default function CTASection({
           </p>
 
           <Link
-            to={buttonLink}
+            to={resolvedButtonLink}
             className="inline-flex items-center gap-2 bg-white text-indigo-700 font-bold text-sm px-7 py-3.5 rounded-xl hover:-translate-y-0.5 transition-transform shadow-[0_18px_40px_-12px_rgba(0,0,0,0.4)]"
           >
-            {buttonText}
+            {resolvedButtonText}
             <ArrowRight size={16} />
           </Link>
 
-          <p className="text-indigo-200/85 text-xs mt-4">
-            No credit card required
-          </p>
+          {!loggedIn && (
+            <p className="text-indigo-200/85 text-xs mt-4">
+              No credit card required
+            </p>
+          )}
         </div>
       </div>
     </section>

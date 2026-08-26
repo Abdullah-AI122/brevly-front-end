@@ -90,11 +90,34 @@ export default function Register() {
 
   /* ── OTP digit change ── */
   function handleOtpChange(index, value) {
-    if (!/^\d?$/.test(value)) return
+    const digits = value.replace(/\D/g, '')
+    if (!digits) {
+      if (value === '') {
+        const next = [...otpDigits]
+        next[index] = ''
+        setOtpDigits(next)
+      }
+      return
+    }
+
+    // Handles a full code pasted or autofilled into a single box.
+    if (digits.length > 1) {
+      const next = [...otpDigits]
+      let i = index
+      for (const digit of digits) {
+        if (i > 5) break
+        next[i] = digit
+        i++
+      }
+      setOtpDigits(next)
+      otpRefs.current[Math.min(i, 5)]?.focus()
+      return
+    }
+
     const next = [...otpDigits]
-    next[index] = value
+    next[index] = digits
     setOtpDigits(next)
-    if (value && index < 5) {
+    if (index < 5) {
       otpRefs.current[index + 1]?.focus()
     }
   }
@@ -328,7 +351,7 @@ export default function Register() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
-                  ) : 'Create Account & Send OTP'}
+                  ) : 'Create Account'}
                 </button>
               </form>
 
@@ -398,7 +421,9 @@ export default function Register() {
                       ref={el => (otpRefs.current[i] = el)}
                       type="text"
                       inputMode="numeric"
-                      maxLength={1}
+                      autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                      aria-label={`Digit ${i + 1} of 6`}
+                      maxLength={i === 0 ? 6 : 1}
                       value={digit}
                       onChange={e => handleOtpChange(i, e.target.value)}
                       onKeyDown={e => handleOtpKeyDown(i, e)}

@@ -69,6 +69,7 @@ export default function Blog() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
+      <main id="main">
       {/* Hero */}
       <section className="pt-28 pb-6 md:pb-12 px-6 text-center border-b border-slate-100">
         <div className="max-w-2xl mx-auto">
@@ -208,6 +209,7 @@ export default function Blog() {
             )}
           </>
       </div>
+      </main>
 
       <Footer />
     </div>

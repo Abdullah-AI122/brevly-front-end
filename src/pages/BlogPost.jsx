@@ -3,6 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Calendar, ArrowRight } from 'lucide-react'
 import Navbar from '../components/Navbar'
 import { sanityClient, urlForImage } from '../lib/sanity'
+import Seo from '../components/Seo'
 import { PortableText } from '@portabletext/react'
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -69,10 +70,23 @@ export default function BlogPost() {
 
   if (!post) return <Navigate to="/blog" />
 
+  const metaDescription =
+    post.excerpt ||
+    (typeof post.content === 'string'
+      ? post.content.replace(/[#*`>_[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 155)
+      : `${post.title} — a Curtio guide on links, analytics and growth.`)
+
   return (
     <div className="min-h-screen bg-white">
+      <Seo
+        title={`${post.title} | Curtio Blog`}
+        description={metaDescription}
+        image={post.coverImage ? urlForImage(post.coverImage) : undefined}
+        type="article"
+      />
       <Navbar />
 
+      <main id="main">
       {/* Cover */}
       <div className="pt-16 h-64 relative flex items-end overflow-hidden bg-slate-100">
         {post.coverImage ? (
@@ -146,7 +160,7 @@ export default function BlogPost() {
                   inline ? (
                     <code className="bg-slate-100 text-indigo-700 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />
                   ) : (
-                    <pre className="bg-slate-100 p-4 rounded overflow-x-auto"><code className="text-indigo-700" {...props} /></pre>
+                    <pre className="bg-slate-100 p-4 rounded overflow-x-auto whitespace-pre-wrap [overflow-wrap:anywhere]"><code className="text-indigo-700" {...props} /></pre>
                   ),
               }}
             >
@@ -206,6 +220,7 @@ export default function BlogPost() {
           </div>
         </section>
       )}
+      </main>
 
       <footer className="border-t border-slate-100 py-8 px-6 text-center text-slate-400 text-sm">
         © {new Date().getFullYear()} Curtio.

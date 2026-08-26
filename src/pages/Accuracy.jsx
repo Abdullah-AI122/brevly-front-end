@@ -87,6 +87,7 @@ export default function Accuracy() {
         <>
             <Navbar />
 
+            <main id="main">
             {/* ── HERO ─────────────────────────────────────────────── */}
             <section className="relative overflow-hidden pt-[152px] pb-[60px] text-center">
                 <div
@@ -297,6 +298,7 @@ export default function Accuracy() {
                 buttonText="Get started free"
                 buttonLink="/register"
             />
+            </main>
 
             <Footer />
         </>

@@ -119,6 +119,7 @@ export default function Pricing() {
     <>
       <Navbar />
 
+      <main id="main">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section className="relative overflow-hidden pt-[152px] pb-[56px] text-center">
         <div
@@ -363,6 +364,7 @@ export default function Pricing() {
         buttonText="Get started free"
         buttonLink="/register"
       />
+      </main>
 
       <Footer />
     </>

@@ -340,6 +340,7 @@ export default function Features() {
     <>
       <Navbar />
 
+      <main id="main">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section className="relative overflow-hidden pt-[152px] pb-[76px] text-center">
         <div
@@ -442,6 +443,7 @@ export default function Features() {
         buttonText="Get started free"
         buttonLink="/register"
       />
+      </main>
 
       <Footer />
     </>

@@ -17,6 +17,7 @@ import Features from "./pages/feature";
 import PreClick from "./pages/PreClick";
 import OwnerRoute from "./components/OwnerRoute";
 import SocketProvider from "./socket/SocketProvider";
+import { RouteSeo } from "./components/Seo";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -35,6 +36,7 @@ function ScrollToTop() {
 export default function App() {
   return (
     <BrowserRouter>
+      <RouteSeo />
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />

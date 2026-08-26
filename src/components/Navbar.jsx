@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { isLoggedIn as hasActiveSession } from "../lib/session";
 
 export default function Navbar() {
   const location = useLocation();
@@ -30,7 +31,7 @@ export default function Navbar() {
   };
 
   const storedUser = getStoredUser();
-  const isLoggedIn = !!storedUser;
+  const isLoggedIn = hasActiveSession();
   const userInitial = storedUser?.name?.charAt(0).toUpperCase() || "";
 
   const navItems = [
@@ -58,18 +59,24 @@ export default function Navbar() {
         : "bg-[#FAFAFA]/70 border-b border-transparent"
         }`}
     >
-      <div className="max-w-[1152px] mx-auto px-6 flex items-center gap-8 h-[68px] relative">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-indigo-600 focus:text-white focus:text-sm focus:font-semibold"
+      >
+        Skip to content
+      </a>
+      <div className="max-w-[1152px] mx-auto px-6 flex items-center gap-4 h-[68px] relative">
         {/* Logo */}
         <Link
           to="/"
-          className="font-bold text-2xl tracking-[-0.03em] text-slate-900"
+          className="font-bold text-2xl tracking-[-0.03em] text-slate-900 shrink-0"
           style={{ fontFamily: "'Space Grotesk','Inter',sans-serif" }}
         >
           curtio<span className="text-indigo-600">.</span>
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <nav className="hidden md:flex flex-1 items-center justify-center gap-1.5 min-w-0">
           {navItems.map((item) => (
             <Link
               key={item.label}

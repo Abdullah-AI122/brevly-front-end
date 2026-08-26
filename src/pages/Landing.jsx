@@ -16,6 +16,7 @@ import Footer from '../components/footer'
 import ComparisonSection from '../components/Comparison.jsx'
 import CTASection from '../components/cta.jsx'
 import { setCookie, eraseCookie } from '../lib/cookies'
+import { isLoggedIn } from '../lib/session'
 import env from '../../Config/env'
 
 
@@ -197,6 +198,7 @@ export default function Landing() {
     <div className="min-h-screen bg-[#FAFAFA] text-[#334155]">
       <Navbar />
 
+      <main id="main">
       {/* ===================== HERO ===================== */}
       <section className="relative pt-36 pb-20 px-6 text-center overflow-hidden">
         <div
@@ -231,19 +233,32 @@ export default function Landing() {
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <div className="flex items-center gap-3 flex-1 bg-[#FAFAFA] border border-slate-200 rounded-xl px-4 py-3.5 focus-within:border-indigo-600 focus-within:bg-white focus-within:shadow-[0_0_0_4px_#EEF2FF] transition-colors">
                   <LinkIcon size={18} className="text-slate-400 shrink-0" />
+                  <label htmlFor="hero-url-input" className="sr-only">
+                    Long URL to shorten
+                  </label>
                   <input
+                    id="hero-url-input"
                     type="text"
                     value={url}
                     onChange={e => { setUrl(e.target.value); setShortened(null); setError('') }}
                     placeholder="Paste your long URL here..."
-                    className="flex-1 text-slate-800 placeholder-slate-400 bg-transparent outline-none text-sm"
+                    className="flex-1 text-slate-800 placeholder-slate-400 bg-transparent outline-none text-sm "
                   />
                 </div>
                 <Shortener loading={loading} />
               </div>
               <p className="text-xs text-slate-500 mt-3 ml-1">
-                No account needed to try.{' '}
-                <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Sign up free</Link> to track it.
+                {isLoggedIn() ? (
+                  <>
+                    Saved straight to your{' '}
+                    <Link to="/dashboard" className="text-indigo-600 font-semibold hover:underline">Dashboard</Link>.
+                  </>
+                ) : (
+                  <>
+                    No account needed to try.{' '}
+                    <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Sign up free</Link> to track it.
+                  </>
+                )}
               </p>
               {error && (
                 <div className="mt-4 animate-[riseIn_.4s_ease] border-t border-dashed border-slate-200 pt-4">
@@ -265,7 +280,7 @@ export default function Landing() {
                     <div className="text-[0.7rem] font-semibold tracking-wide text-slate-500 uppercase">
                       Your short link
                     </div>
-                    {!localStorage.getItem('apiToken') && (
+                    {!isLoggedIn() && (
                       <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 font-mono font-semibold text-xs px-2.5 py-1 rounded-full border border-indigo-100">
                         <Clock size={12} className="animate-pulse text-indigo-600" />
                         <span>{isExpired ? 'Expired' : `Expires in ${formatTime(timeLeft)}`}</span>
@@ -287,7 +302,7 @@ export default function Landing() {
 
                   <div className="flex gap-3 items-start mt-3.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-sm text-amber-800 leading-relaxed">
                     <AlertTriangle size={19} className="text-amber-500 shrink-0 mt-0.5" />
-                    {localStorage.getItem('apiToken') ? (
+                    {isLoggedIn() ? (
                       <span>
                         🎉 <strong className="text-amber-900">Saved to your account.</strong> Visit your{' '}
                         <Link to="/dashboard" className="text-indigo-600 font-semibold hover:underline">Dashboard</Link>{' '}
@@ -326,7 +341,7 @@ export default function Landing() {
           {STATS.map(stat => (
             <div key={stat.label} className="text-center relative">
               <div className="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{stat.value}</div>
-              <div className="text-xs md:text-sm text-slate-500 mt-2 font-medium">{stat.label}</div>
+              <div className="text-xs md:text-sm text-slate-600 mt-2 font-medium">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -465,6 +480,7 @@ export default function Landing() {
         buttonText={"Get started free"}
         buttonLink="/register"
       />
+      </main>
 
       <Footer />
     </div>
