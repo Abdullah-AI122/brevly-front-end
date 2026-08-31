@@ -613,6 +613,11 @@ export default function Campaigns() {
   const campaignsMap = {};
   const campaignSourceMap = {};
   const campaignMediumMap = {};
+  // Links belonging to at least one campaign — by utm_campaign in the
+  // destination URL OR by the campaigns array ("Add to Campaign"). The Tagged
+  // URLs card must use this same rule as the grouping below, not the URL param
+  // alone, or a link added through the modal is grouped but never counted.
+  const campaignLinkIds = new Set();
   links.forEach((link) => {
     const linkCampaigns = new Map(); // name -> { source, medium }
     const urlCampaign = getCampaignParam(link.original);
@@ -642,17 +647,15 @@ export default function Campaigns() {
         campaignsMap[name] = { name, links: [], clicks: 0, preClicks: 0, activeCount: 0 };
       }
       campaignsMap[name].links.push(link);
+      campaignLinkIds.add(link.id);
       // Store source and medium for this link-campaign pair
       campaignSourceMap[`${link.id}::${name}`] = details.source;
       campaignMediumMap[`${link.id}::${name}`] = details.medium;
-      const linkFilteredCount = (link.clickLogs || []).filter(
-        logMatchesFilters,
-      ).length;
-      const linkFilteredPreCount = (link.preClickLogs || []).filter(
-        logMatchesFilters,
-      ).length;
-      campaignsMap[name].clicks += linkFilteredCount;
-      campaignsMap[name].preClicks += linkFilteredPreCount;
+      // Campaign totals use the stored counters, same as Dashboard.jsx. Summing
+      // the date-filtered logs instead made a campaign report fewer clicks than
+      // the link it contains, because the default range only covers 7 days.
+      campaignsMap[name].clicks += link.clicks || 0;
+      campaignsMap[name].preClicks += link.preClicks || 0;
       if (link.active) campaignsMap[name].activeCount += 1;
     });
   });
@@ -1590,9 +1593,7 @@ export default function Campaigns() {
                 <StatCard
                   icon={<FolderOpen size={18} className="text-green-500" />}
                   label="Tagged URLs"
-                  value={links
-                    .filter((l) => getCampaignParam(l.original))
-                    .length.toLocaleString()}
+                  value={campaignLinkIds.size.toLocaleString()}
                   sub={`Out of ${links.length} total links`}
                 />
               </div>

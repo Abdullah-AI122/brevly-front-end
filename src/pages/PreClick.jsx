@@ -441,10 +441,9 @@ export default function PreClick() {
   });
 
   const totalUrls = links.length;
-  const hasActiveFilters = Boolean(startDate || endDate || selectedDevice || selectedCountry || selectedSource);
-  const totalPreClicks = hasActiveFilters
-    ? allFilteredLogs.length
-    : Math.max(allFilteredLogs.length, links.reduce((sum, l) => sum + (l.preClicks || 0), 0));
+  // Exact stored counter, same as Dashboard.jsx. This page reports
+  // non-redirected clicks only — redirected clicks live on /dashboard/analytics.
+  const totalPreClicks = links.reduce((sum, l) => sum + (l.preClicks || 0), 0);
   const activeLinks = links.filter((l) => l.active).length;
   const inactiveLinks = totalUrls - activeLinks;
 
@@ -741,7 +740,7 @@ export default function PreClick() {
             </Link>
             <StatCard
               icon={<MousePointerClick size={18} className="text-orange-500" />}
-              label="Total Non-Redirect Clicks"
+              label="Non-Redirected Clicks"
               value={totalPreClicks.toLocaleString()}
               sub="All time traffic"
             />

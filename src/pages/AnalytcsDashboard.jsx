@@ -10,7 +10,6 @@ import Sidebar from "../components/Sidebar";
 import Filter from "../components/filter";
 import ShareModal from "../components/LinkShareModal";
 import LabelCell from "../components/LabelCell";
-import { isOwner } from "../ownerAccess";
 import AddToCampaignModal from "../components/AddToCampaignModal";
 import { isLinkNew, markLinkAsViewed } from "../lib/newLinkTracker";
 
@@ -147,7 +146,6 @@ export default function AnalytcsDashboard() {
   const userName = storedUser.name || "User";
   const userEmail = storedUser.email || "";
   const userInitial = userName.charAt(0).toUpperCase();
-  const canViewPreClicks = isOwner();
 
   function handleLogout() {
     localStorage.removeItem("apiToken");
@@ -454,8 +452,9 @@ export default function AnalytcsDashboard() {
   });
 
   const totalUrls = links.length;
-  const totalClicks = allFilteredLogs.length;
-  const totalPreClicks = links.reduce((sum, l) => sum + (l.preClicks || 0), 0);
+  // Exact stored counter, same as Dashboard.jsx. This page reports redirected
+  // clicks only — non-redirected clicks live on /dashboard/preclick.
+  const totalClicks = links.reduce((sum, l) => sum + (l.clicks || 0), 0);
   const activeLinks = links.filter((l) => l.active).length;
   const inactiveLinks = totalUrls - activeLinks;
 
@@ -742,7 +741,7 @@ export default function AnalytcsDashboard() {
           )}
 
           {/* Stats Cards */}
-          <div className={`grid grid-cols-2 sm:grid-cols-3 ${canViewPreClicks ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-2.5 sm:gap-4`}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
             <Link to="/dashboard">
               <StatCard
                 icon={<LinkIcon size={18} className="text-indigo-600" />}
@@ -758,15 +757,6 @@ export default function AnalytcsDashboard() {
               value={totalClicks.toLocaleString()}
               sub="All time traffic"
             />
-            {canViewPreClicks && <Link to="/dashboard/preclick">
-              <StatCard
-                icon={<MousePointerClick size={18} className="text-orange-500" />}
-                label="Non-Redirected Clicks"
-                value={totalPreClicks.toLocaleString()}
-                sub="All time traffic"
-              />
-            </Link>}
-
             <Link to="/dashboard" state={{ filter: "Active" }}><StatCard
               icon={<Activity size={18} className="text-green-500" />}
               label="Active Links"
