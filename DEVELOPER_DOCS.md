@@ -1,4 +1,4 @@
-# Brevly — Developer Documentation
+# Curtio — Developer Documentation
 
 **Version:** 1.0  
 **Last Updated:** May 2026  
@@ -41,7 +41,7 @@
 
 ## 1. Project Overview
 
-**Brevly** is a free link shortening and analytics SaaS. Users can shorten URLs, track clicks with detailed analytics, generate QR codes, and configure advanced link settings (UTM parameters, password protection, expiration dates).
+**Curtio** is a free link shortening and analytics SaaS. Users can shorten URLs, track clicks with detailed analytics, generate QR codes, and configure advanced link settings (UTM parameters, password protection, expiration dates).
 
 ### Core Value Proposition
 
@@ -52,7 +52,7 @@
 
 ### Competitive Positioning
 
-Brevly is positioned as the "always free, no credit card, genuinely useful" link shortener. The free tier is intentionally generous for individual users (one link with full analytics), making it a credible alternative to Bitly, Cuttly, and similar tools for personal use.
+Curtio is positioned as the "always free, no credit card, genuinely useful" link shortener. The free tier is intentionally generous for individual users (one link with full analytics), making it a credible alternative to Bitly, Cuttly, and similar tools for personal use.
 
 ---
 
@@ -102,7 +102,7 @@ Brevly is positioned as the "always free, no credit card, genuinely useful" link
                                  └───────────────────┘
 ┌─────────────────────────────────────────────────────┐
 │            REDIRECT SERVICE (edge / CDN)            │
-│  brev.ly/:slug → lookup → redirect with analytics  │
+│  redirect.curtio.io/:slug → lookup → redirect with analytics  │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -118,7 +118,7 @@ The **redirect service** is intentionally separate from the main API because it 
 **File:** `src/pages/Landing.jsx`
 
 #### What it does
-- Marketing page explaining Brevly's value proposition.
+- Marketing page explaining Curtio's value proposition.
 - Contains a functional URL shortener form (guest usage).
 - Shows the Free vs. Free Account tier comparison.
 - Displays features, stats, and a CTA to register.
@@ -529,7 +529,7 @@ The frontend currently has no auth guard. Backend should return `401 Unauthorize
 2. Check Redis rate limit: `INCR guest:{ip}` with `EXPIRE 86400`.
 3. Generate slug (6-char random).
 4. Insert into `links` with `is_guest=true, user_id=NULL`.
-5. Return `{ shortUrl: "https://brev.ly/{slug}" }`.
+5. Return `{ shortUrl: "https://redirect.curtio.io/{slug}" }`.
 
 ---
 
@@ -589,7 +589,7 @@ The frontend currently has no auth guard. Backend should return `401 Unauthorize
 
 **Backend:**
 1. Look up link by ID (verify ownership).
-2. Generate QR code for `https://brev.ly/{slug}` using a QR library.
+2. Generate QR code for `https://redirect.curtio.io/{slug}` using a QR library.
 3. Return SVG string or PNG base64.
 4. Optionally cache the QR code in S3/R2 keyed by slug (avoids regeneration).
 
@@ -644,7 +644,7 @@ The backend receives and stores the final URL with UTM params already appended. 
 
 ## 10. Redirect Service
 
-This is the most performance-critical component. Every time a user clicks a Brevly short link, this service runs.
+This is the most performance-critical component. Every time a user clicks a Curtio short link, this service runs.
 
 ### Requirements
 - **Latency target:** < 50ms p99.
@@ -653,7 +653,7 @@ This is the most performance-critical component. Every time a user clicks a Brev
 
 ### Recommended Architecture
 ```
-User clicks brev.ly/abc123
+User clicks redirect.curtio.io/abc123
        ↓
 Cloudflare/CDN (edge cache for popular slugs)
        ↓
@@ -761,14 +761,6 @@ Currently all state is local React state (useState). When connecting to the back
 
 ---
 
-## 13. Environment Variables
-
-### Frontend (`.env`)
-```
-VITE_API_BASE_URL=https://api.brev.ly
-VITE_APP_URL=https://brev.ly
-VITE_GOOGLE_CLIENT_ID=your_google_client_id
-```
 
 ### Backend (`.env`)
 ```
@@ -778,7 +770,7 @@ ACCESS_TOKEN_SECRET=your_jwt_secret_min_32_chars
 REFRESH_TOKEN_SECRET=your_refresh_secret_min_32_chars
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_CALLBACK_URL=https://api.brev.ly/api/auth/google/callback
+GOOGLE_CALLBACK_URL=https://api.redirect.curtio.io/api/auth/google/callback
 BCRYPT_SALT_ROUNDS=12
 IP_SALT=random_secret_for_ip_hashing
 GEOIP_DB_PATH=./GeoLite2-City.mmdb
@@ -805,7 +797,7 @@ AWS_SECRET_ACCESS_KEY=...
 
 ### Domain Setup
 - `brev.ly` — main frontend
-- `brev.ly/:slug` — redirect service (handled by Cloudflare Worker on the root domain)
+- `redirect.curtio.io/:slug` — redirect service (handled by Cloudflare Worker on the root domain)
 - `api.brev.ly` — backend API
 - `*.brev.ly` — future custom domain support (CNAME pointing to Cloudflare)
 

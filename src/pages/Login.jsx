@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Zap, Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { syncPendingUrl } from "../lib/sync";
+import env from "../../Config/env";
 
-
-const baseUrl = `${import.meta.env.VITE_API_URL}/auth`;
+const baseUrl = `${env.BACKEND_URL}/auth`;
 
 export default function Login() {
     const navigate = useNavigate();
@@ -108,11 +108,11 @@ export default function Login() {
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
                 <Zap size={16} className="text-white" fill="white" />
               </div>
-              <span className="text-xl font-extrabold text-slate-900">Brevly</span>
+              <span className="text-xl font-extrabold text-slate-900">Curtio</span>
             </Link>
 
             <h1 className="text-3xl font-extrabold text-slate-900 mb-1">Welcome back</h1>
-            <p className="text-slate-500 mb-8">Sign in to your Brevly account.</p>
+            <p className="text-slate-500 mb-8">Sign in to your Curtio account.</p>
 
             {error && (
               <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">

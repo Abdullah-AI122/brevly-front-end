@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ShieldCheck, Lock, RefreshCw, AlertCircle, ArrowRight } from "lucide-react";
+import env from "../../Config/env";
 
 export default function CaptchaVerify() {
   const { shortCode } = useParams();
@@ -16,7 +17,7 @@ export default function CaptchaVerify() {
   const fetchCaptcha = async () => {
     try {
       setFetchingCaptcha(true);
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/public/captcha`);
+      const res = await fetch(`${env.BACKEND_URL}/public/captcha`);
       const data = await res.json();
       if (data.success) {
         setCaptchaSvg(data.svg);
@@ -45,7 +46,7 @@ export default function CaptchaVerify() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/public/verify/${shortCode}`, {
+      const res = await fetch(`${env.BACKEND_URL}/public/verify/${shortCode}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

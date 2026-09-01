@@ -23,9 +23,9 @@ That's 125 characters — and it tells your audience absolutely nothing useful.
 
 The real power of a short link is what happens behind it. Every click is a data point: where the user came from, what device they're on, where in the world they are. That intelligence is what separates brands that grow intentionally from ones that grow randomly.
 
-## What Brevly gives you
+## What Curtio gives you
 
-With Brevly, you can:
+With Curtio, you can:
 - Turn any URL into a clean, branded link in under a second
 - Track every click with real-time analytics
 - See exactly which channels drive the most traffic
@@ -73,9 +73,9 @@ With UTM tags:
 
 Now you know *exactly* what drove conversions.
 
-## Use Brevly's UTM Builder
+## Use Curtio's UTM Builder
 
-Brevly includes a built-in UTM builder so you never have to manually construct these strings again. Just fill in the fields, copy your tagged short link, and go.
+Curtio includes a built-in UTM builder so you never have to manually construct these strings again. Just fill in the fields, copy your tagged short link, and go.
     `,
   },
   {
@@ -107,9 +107,9 @@ Change the destination of your short link, and every QR code pointing to it upda
 3. **Events** — link to schedules, maps, check-in forms
 4. **Restaurants & retail** — menus, loyalty programs, promotions
 
-## Generating QR codes with Brevly
+## Generating QR codes with Curtio
 
-Every link you create in Brevly automatically gets a downloadable QR code. Export it as SVG or PNG, drop it into your designs, and track scans just like any other click.
+Every link you create in Curtio automatically gets a downloadable QR code. Export it as SVG or PNG, drop it into your designs, and track scans just like any other click.
     `,
   },
   {
@@ -153,8 +153,8 @@ The biggest mistake beginners make is tracking everything without knowing what s
   {
     id: '5',
     slug: 'brevly-free-plan-guide',
-    title: 'Getting the Most Out of Brevly\'s Free Plan',
-    excerpt: 'Brevly is free, no credit card needed. Here\'s exactly what you get on the free tier and how to make the most of your one tracked link.',
+    title: 'Getting the Most Out of Curtio\'s Free Plan',
+    excerpt: 'Curtio is free, no credit card needed. Here\'s exactly what you get on the free tier and how to make the most of your one tracked link.',
     category: 'Product',
     author: { name: 'Marcus Webb', avatar: 'M', role: 'Data Engineer' },
     date: 'May 1, 2026',
@@ -164,7 +164,7 @@ The biggest mistake beginners make is tracking everything without knowing what s
     content: `
 ## What's included for free
 
-Brevly is completely free to use. No credit card, no trial period, no expiry. Here's what you get:
+Curtio is completely free to use. No credit card, no trial period, no expiry. Here's what you get:
 
 - **Guest shortening** — paste any URL and get a short link instantly, no account needed (up to 5/day)
 - **1 tracked link** — sign up for a free account and get one link with full analytics: clicks over time, devices, referrers, and geography

@@ -12,11 +12,9 @@ export default function GoogleAuth() {
       token,
     });
 
-    
   };
 
   const handleError = () => {
-    console.log("Login Failed");
   };
 
   return (

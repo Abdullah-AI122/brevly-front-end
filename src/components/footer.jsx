@@ -30,16 +30,12 @@ const Footer = () => {
                 Features
               </Link>
 
-              <Link to="/pricing" className="block text-slate-700 transition hover:text-indigo-600">
+              {/* <Link to="/pricing" className="block text-slate-700 transition hover:text-indigo-600">
                 Pricing
-              </Link>
+              </Link> */}
 
               <Link to="/accuracy" className="block text-slate-700 transition hover:text-indigo-600">
                 Accuracy
-              </Link>
-
-              <Link to="/qr-codes" className="block text-slate-700 transition hover:text-indigo-600">
-                QR Codes
               </Link>
             </div>
           </div>
@@ -54,14 +50,6 @@ const Footer = () => {
               <Link to="/blog" className="block text-slate-700 transition hover:text-indigo-600">
                 Blog
               </Link>
-
-              <Link to="/about" className="block text-slate-700 transition hover:text-indigo-600">
-                About
-              </Link>
-
-              <Link to="/contact" className="block text-slate-700 transition hover:text-indigo-600">
-                Contact
-              </Link>
             </div>
           </div>
 
@@ -73,19 +61,30 @@ const Footer = () => {
 
             <div className="space-y-2">
               <Link to="/privacy-policy" className="block text-slate-700 transition hover:text-indigo-600">
-                Privacy
+                Privacy Policy
               </Link>
 
               <Link to="/terms-of-service" className="block text-slate-700 transition hover:text-indigo-600">
-                Terms
+                Terms of Service
+              </Link>
+
+              <Link to="/refund-policy" className="block text-slate-700 transition hover:text-indigo-600">
+                Refund &amp; Return Policy
+              </Link>
+
+              <Link to="/shipping-policy" className="block text-slate-700 transition hover:text-indigo-600">
+                Shipping &amp; Service Policy
+              </Link>
+
+              <Link to="/pricing" className="block text-slate-700 transition hover:text-indigo-600">
+                Pricing Plan
               </Link>
             </div>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
+        <div className="mt-12 flex flex-col gap-3 border-t border-slate-200 pt-6 text-sm text-slate-500 md:flex-row md:items-center md:justify-between text-center">
           <span>© 2026 curtio.io</span>
-          <span>Built with love for the web.</span>
         </div>
       </div>
     </footer>

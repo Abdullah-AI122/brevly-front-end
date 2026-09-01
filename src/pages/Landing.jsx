@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Zap, BarChart2, Shield, Globe, Copy, Check,
@@ -15,12 +15,16 @@ import { FaArrowRight } from 'react-icons/fa6'
 import Footer from '../components/footer'
 import ComparisonSection from '../components/Comparison.jsx'
 import CTASection from '../components/cta.jsx'
+import { setCookie, eraseCookie } from '../lib/cookies'
+import { isLoggedIn } from '../lib/session'
+import env from '../../Config/env'
+
 
 const FEATURES = [
   { icon: <Zap size={20} />, tone: 'indigo', title: 'Lightning Fast Shortening', desc: 'Turn any URL into a clean short link in under a second. No friction, no account needed for quick shares.' },
   { icon: <BarChart2 size={20} />, tone: 'orange', title: 'Real-Time Analytics', desc: 'See every click: device, country, referrer, browser, OS — all updated live.' },
   { icon: <QrCode size={20} />, tone: 'indigo', title: 'QR Code Generation', desc: 'Every link gets a downloadable QR code — PNG or SVG, ready for print or digital.' },
-  { icon: <Globe size={20} />, tone: 'orange', title: 'Custom Aliases', desc: 'Brand your links with human-readable slugs like brev.ly/your-campaign.' },
+  { icon: <Globe size={20} />, tone: 'orange', title: 'Custom Aliases', desc: 'Brand your links with human-readable slugs like redirect.curtio.io/your-campaign.' },
   { icon: <Clock size={20} />, tone: 'indigo', title: 'Link Expiration', desc: 'Set an expiry date on any link. After it expires, visitors see a clean "expired" message.' },
   { icon: <Lock size={20} />, tone: 'orange', title: 'Password Protection', desc: 'Add a password to any link. Only people with the password get redirected.' },
   { icon: <Target size={20} />, tone: 'indigo', title: 'Retargeting Pixels', desc: 'Embed your Facebook, Google, or LinkedIn pixel into any link — retarget every visitor automatically.' },
@@ -59,10 +63,73 @@ export default function Landing() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(null)
+  const [isExpired, setIsExpired] = useState(false)
 
   function isValidUrl(str) {
     try { new URL(str); return true } catch { return false }
   }
+
+  function formatTime(seconds) {
+    if (seconds === null || seconds < 0) return '02:00'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+
+  function handleTimerExpired() {
+    setIsExpired(true)
+    setTimeLeft(0)
+    eraseCookie('brevly_pending_url')
+    localStorage.removeItem('pending_url')
+    localStorage.removeItem('pending_url_expires_at')
+    localStorage.removeItem('pending_slug')
+  }
+
+  // Restore countdown timer on mount if pending URL exists
+  useEffect(() => {
+    const token = localStorage.getItem('apiToken')
+    if (token) return
+
+    const savedPending = localStorage.getItem('pending_url')
+    const savedExpires = localStorage.getItem('pending_url_expires_at')
+    const savedSlug = localStorage.getItem('pending_slug')
+
+    if (savedPending && savedExpires) {
+      const now = Date.now()
+      const diff = Math.floor((Number(savedExpires) - now) / 1000)
+      if (diff > 0) {
+        setTimeLeft(diff)
+        setIsExpired(false)
+        setShortened(`${SHORTENER_DOMAIN}/${savedSlug || generateSlug()}`)
+      } else {
+        handleTimerExpired()
+      }
+    }
+  }, [])
+
+  // Live 1-second countdown interval
+  useEffect(() => {
+    if (timeLeft === null || isExpired) return
+
+    if (timeLeft <= 0) {
+      handleTimerExpired()
+      return
+    }
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval)
+          handleTimerExpired()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [timeLeft, isExpired])
 
   async function handleShorten(e) {
     e.preventDefault()
@@ -75,7 +142,7 @@ export default function Landing() {
 
     if (token) {
       try {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const baseUrl = env.BACKEND_URL;
         const res = await fetch(`${baseUrl}/urls`, {
           method: 'POST',
           headers: {
@@ -106,8 +173,16 @@ export default function Landing() {
       setTimeout(() => {
         const slug = generateSlug()
         const shortenedUrl = `${SHORTENER_DOMAIN}/${slug}`
-        console.log("Generated Short URL:", shortenedUrl)
+        const expiresAt = Date.now() + 120000; // 2 minutes (120 seconds)
+
         setShortened(shortenedUrl)
+        setCookie('brevly_pending_url', url, 2 / (24 * 60)) // 2 minutes cookie
+        localStorage.setItem('pending_url', url)
+        localStorage.setItem('pending_url_expires_at', String(expiresAt))
+        localStorage.setItem('pending_slug', slug)
+
+        setTimeLeft(120)
+        setIsExpired(false)
         setLoading(false)
       }, 700)
     }
@@ -123,6 +198,7 @@ export default function Landing() {
     <div className="min-h-screen bg-[#FAFAFA] text-[#334155]">
       <Navbar />
 
+      <main id="main">
       {/* ===================== HERO ===================== */}
       <section className="relative pt-36 pb-20 px-6 text-center overflow-hidden">
         <div
@@ -157,19 +233,32 @@ export default function Landing() {
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <div className="flex items-center gap-3 flex-1 bg-[#FAFAFA] border border-slate-200 rounded-xl px-4 py-3.5 focus-within:border-indigo-600 focus-within:bg-white focus-within:shadow-[0_0_0_4px_#EEF2FF] transition-colors">
                   <LinkIcon size={18} className="text-slate-400 shrink-0" />
+                  <label htmlFor="hero-url-input" className="sr-only">
+                    Long URL to shorten
+                  </label>
                   <input
+                    id="hero-url-input"
                     type="text"
                     value={url}
                     onChange={e => { setUrl(e.target.value); setShortened(null); setError('') }}
                     placeholder="Paste your long URL here..."
-                    className="flex-1 text-slate-800 placeholder-slate-400 bg-transparent outline-none text-sm"
+                    className="flex-1 text-slate-800 placeholder-slate-400 bg-transparent outline-none text-sm "
                   />
                 </div>
                 <Shortener loading={loading} />
               </div>
               <p className="text-xs text-slate-500 mt-3 ml-1">
-                No account needed to try.{' '}
-                <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Sign up free</Link> to track it.
+                {isLoggedIn() ? (
+                  <>
+                    Saved straight to your{' '}
+                    <Link to="/dashboard" className="text-indigo-600 font-semibold hover:underline">Dashboard</Link>.
+                  </>
+                ) : (
+                  <>
+                    No account needed to try.{' '}
+                    <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Sign up free</Link> to track it.
+                  </>
+                )}
               </p>
               {error && (
                 <div className="mt-4 animate-[riseIn_.4s_ease] border-t border-dashed border-slate-200 pt-4">
@@ -187,7 +276,17 @@ export default function Landing() {
 
               {shortened && (
                 <div className="mt-4 border-t border-dashed border-slate-200 pt-4 animate-[riseIn_.4s_ease]">
-                  <div className="text-[0.7rem] font-semibold tracking-wide text-slate-500 uppercase mb-2">Your short link</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[0.7rem] font-semibold tracking-wide text-slate-500 uppercase">
+                      Your short link
+                    </div>
+                    {!isLoggedIn() && (
+                      <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 font-mono font-semibold text-xs px-2.5 py-1 rounded-full border border-indigo-100">
+                        <Clock size={12} className="animate-pulse text-indigo-600" />
+                        <span>{isExpired ? 'Expired' : `Expires in ${formatTime(timeLeft)}`}</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <div className="flex-1 min-w-[180px] bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 font-semibold text-indigo-700 text-base truncate">
                       {shortened}
@@ -203,17 +302,24 @@ export default function Landing() {
 
                   <div className="flex gap-3 items-start mt-3.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-sm text-amber-800 leading-relaxed">
                     <AlertTriangle size={19} className="text-amber-500 shrink-0 mt-0.5" />
-                    {localStorage.getItem('apiToken') ? (
+                    {isLoggedIn() ? (
                       <span>
                         🎉 <strong className="text-amber-900">Saved to your account.</strong> Visit your{' '}
                         <Link to="/dashboard" className="text-indigo-600 font-semibold hover:underline">Dashboard</Link>{' '}
                         to track clicks, customize UTMs, set passwords, and view visitor logs.
                       </span>
+                    ) : isExpired ? (
+                      <span>
+                        <strong className="text-red-900">⌛ Guest link expired!</strong>{' '}
+                        <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Create a free account</Link>{' '}
+                        to make permanent links that never expire.
+                      </span>
                     ) : (
                       <span>
-                        <strong className="text-amber-900">This link works, but it is not tracked yet.</strong>{' '}
+                        <strong className="text-amber-900">URL saved locally!</strong>{' '}
+                        <Link to="/login" className="text-indigo-600 font-semibold hover:underline">Sign in</Link> or{' '}
                         <Link to="/register" className="text-indigo-600 font-semibold hover:underline">Create a free account</Link>{' '}
-                        to see who's clicking, counted accurately.
+                        to push this link into your database and view it on your dashboard.
                       </span>
                     )}
                   </div>
@@ -235,7 +341,7 @@ export default function Landing() {
           {STATS.map(stat => (
             <div key={stat.label} className="text-center relative">
               <div className="text-2xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{stat.value}</div>
-              <div className="text-xs md:text-sm text-slate-500 mt-2 font-medium">{stat.label}</div>
+              <div className="text-xs md:text-sm text-slate-600 mt-2 font-medium">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -264,7 +370,7 @@ export default function Landing() {
           </div>
           <div className="bg-indigo-50 border border-indigo-600 rounded-2xl p-7 shadow-[0_8px_30px_-10px_rgba(79,70,229,0.35)]">
             <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-sm mb-4">3</span>
-            <h3 className="font-bold text-indigo-700 text-lg mb-2">Brevly counts once</h3>
+            <h3 className="font-bold text-indigo-700 text-lg mb-2">Curtio counts once</h3>
             <p className="text-indigo-700/80 text-sm">We remove the duplicates. One real visitor counts as one click, a number on your dashboard you can actually act on.</p>
           </div>
         </div>
@@ -304,8 +410,8 @@ export default function Landing() {
           <p className="text-slate-500 text-sm md:text-lg mb-12">From long URL to full insight.</p>
           <div className="grid sm:grid-cols-3 relative">
             {[
-              { step: '1', title: 'Paste', desc: 'Drop any long URL into the Brevly shortener — no account needed for a basic short link.' },
-              { step: '2', title: 'Shorten', desc: 'Instantly receive a clean brev.ly/… link. Sign up to claim a custom alias and track it.' },
+              { step: '1', title: 'Paste', desc: 'Drop any long URL into the Curtio shortener — no account needed for a basic short link.' },
+              { step: '2', title: 'Shorten', desc: 'Instantly receive a clean redirect.curtio.io/… link. Sign up to claim a custom alias and track it.' },
               { step: '3', title: 'Track', desc: 'Watch real-time analytics roll in: who clicked, from where, on what device, from which channel.' },
             ].map((item, i) => (
               <div key={item.step} className="flex flex-col items-center text-center relative px-4">
@@ -358,7 +464,7 @@ export default function Landing() {
               </div>
 
               <div>
-                <p className="font-semibold text-slate-900">[Name]</p>
+                <p className="font-semibold text-slate-900">Alfrad Matt</p>
                 <p className="text-sm text-slate-500">
                   Affiliate marketer · placeholder, replace before launch
                 </p>
@@ -374,6 +480,7 @@ export default function Landing() {
         buttonText={"Get started free"}
         buttonLink="/register"
       />
+      </main>
 
       <Footer />
     </div>

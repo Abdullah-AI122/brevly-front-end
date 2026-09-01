@@ -4,27 +4,27 @@ import { ChevronLeft, ChevronRight, X, Funnel } from "lucide-react";
 export default function Filter({
   startDate = "",
   endDate = "",
-  setStartDate = () => {},
-  setEndDate = () => {},
+  setStartDate = () => { },
+  setEndDate = () => { },
   calendarYear = new Date().getFullYear(),
   calendarMonth = new Date().getMonth(),
-  prevMonth = () => {},
-  nextMonth = () => {},
+  prevMonth = () => { },
+  nextMonth = () => { },
   firstDayOfWeek = 0,
   daysInMonth = 31,
-  handleDateClick = () => {},
+  handleDateClick = () => { },
   finalGeoData = [],
   finalDeviceData = [],
   referrerData = [],
-  onApply = () => {},
-  onClear = () => {},
-  setFilterOpen = () => {},
+  onApply = () => { },
+  onClear = () => { },
+  setFilterOpen = () => { },
   selectedCountry = "",
-  setSelectedCountry = () => {},
+  setSelectedCountry = () => { },
   selectedDevice = "",
-  setSelectedDevice = () => {},
+  setSelectedDevice = () => { },
   selectedSource = "",
-  setSelectedSource = () => {},
+  setSelectedSource = () => { },
 }) {
   const handleClose = () => setFilterOpen(false);
 
@@ -59,7 +59,7 @@ export default function Filter({
 
   return (
     <div
-      className="fixed mb-0 inset-0 z-50 flex md:items-center sm:items-start justify-center sm:p-4 md:p-6"
+      className="fixed mb-0 inset-0 z-50 flex md:items-center sm:items-start justify-center md:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="filter-modal-title"
@@ -73,13 +73,13 @@ export default function Filter({
 
       {/* Modal panel */}
       <div
-        className="relative z-10 w-full sm:max-w-2xl lg:max-w-5xl max-h-[100vh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+        className="relative z-10 w-full  md:w-full lg:max-w-5xl  md:max-h-[100vh] sm:max-h-[90vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-indigo-100 shrink-0">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
+          <div className="flex items-center md:gap-2.5 min-w-0 px-2">
+            <div className="md:block hidden w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
               <Funnel size={18} className="text-indigo-600" />
             </div>
             <div className="min-w-0">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, Links, useNavigate } from "react-router-dom";
+import { Link, Links, useNavigate, useLocation } from "react-router-dom";
 import {
   Zap,
   Plus,
@@ -27,129 +27,48 @@ import {
   Pencil,
   Edit,
   Share2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Target,
 } from "lucide-react";
 import { SHORTENER_DOMAIN } from "../components/Shortner";
 import Sidebar from "../components/Sidebar";
 import { FaWhatsapp } from "react-icons/fa6";
 import ShareModal from "../components/LinkShareModal";
+import LabelCell from "../components/LabelCell";
+import { isOwner } from "../ownerAccess";
+import AddToCampaignModal from "../components/AddToCampaignModal";
+import useSocket from "../socket/useSocket";
+import env from "../../Config/env";
+import QrModal from "../components/ui/QrModal";
+import { syncPendingUrl } from "../lib/sync";
+import { addNewLinkId, isLinkNew, markLinkAsViewed } from "../lib/newLinkTracker";
 
-const PREMIUM_USERS = ["mrabdullahamjid33@gmail.com", "mirhussainjan10387@gmail.com"];
-const baseUrl = import.meta.env.VITE_API_URL;
+const baseUrl = env.BACKEND_URL;
 
-function StatCard({ icon, label, value, sub }) {
+function StatCard({ icon, label, value, sub, className = "" }) {
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-slate-500">{label}</span>
-        <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
+    <div
+      className={`bg-white border border-slate-100 min-h-[5.5rem] md:min-h-[7.5rem] rounded-2xl p-3 md:p-5 shadow-sm hover:border-indigo-400 hover:shadow-md hover:shadow-indigo-200 transition-all duration-300 cursor-pointer w-full ${className}`}
+    >
+      <div className="flex items-center justify-between mb-1.5 md:mb-3 gap-1">
+        <span className="text-[11px] sm:text-xs md:text-sm font-medium text-slate-500 truncate">{label}</span>
+        <div className="w-6 h-6 md:w-9 md:h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
           {icon}
         </div>
       </div>
-      <div className="text-3xl font-extrabold text-slate-900">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-1">{sub}</div>}
+      <div className="text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 truncate">{value}</div>
+      {sub && <div className="text-[10px] sm:text-xs xl:text-sm text-slate-400 mt-0.5 sm:mt-1 truncate">{sub}</div>}
     </div>
   );
 }
 
-function QrModal({ link, onClose }) {
-  const canvasRef = useRef(null);
-  const [qrReady, setQrReady] = useState(false);
-  const [qrError, setQrError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    setQrReady(false);
-    setQrError("");
-
-    import("qrcode").then((QRCode) => {
-      if (cancelled || !canvasRef.current) return;
-      QRCode.toCanvas(
-        canvasRef.current,
-        link.short,
-        {
-          width: 200,
-          margin: 2,
-          color: { dark: "#4F46E5", light: "#F8FAFC" },
-        },
-        (err) => {
-          if (cancelled) return;
-          if (err) {
-            setQrError("Failed to generate QR code.");
-          } else {
-            setQrReady(true);
-          }
-        }
-      );
-    }).catch(() => {
-      if (!cancelled) setQrError("Could not load QR library. Run: npm install qrcode");
-    });
-
-    return () => { cancelled = true; };
-  }, [link.short]);
-
-  function handleDownload() {
-    if (!canvasRef.current) return;
-    const dataUrl = canvasRef.current.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `${link.slug}-qr.png`;
-    a.click();
-  }
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="font-extrabold text-slate-900 text-lg mb-1">QR Code</h3>
-        <p className="text-slate-500 text-sm mb-5 break-all">{link.short}</p>
-
-        <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-center mb-5 min-h-[216px]">
-          {qrError ? (
-            <p className="text-xs text-red-500">{qrError}</p>
-          ) : (
-            <>
-              {!qrReady && (
-                <div className="absolute">
-                  <div className="w-8 h-8 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                </div>
-              )}
-              <canvas
-                ref={canvasRef}
-                className={`rounded-lg transition-opacity duration-300 ${qrReady ? "opacity-100" : "opacity-0"}`}
-              />
-            </>
-          )}
-        </div>
-
-        {!qrError && (
-          <button
-            onClick={handleDownload}
-            disabled={!qrReady}
-            className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl mb-3 transition-colors"
-          >
-            Download PNG
-          </button>
-        )}
-        <button
-          onClick={onClose}
-          className="block w-full text-center text-slate-500 hover:text-slate-800 text-sm py-2 transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function DeleteModal({ onConfirm, onCancel, deleting }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={() => !deleting && onCancel()}
     >
       <div
@@ -170,14 +89,14 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="flex-1 cursor-pointer py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            className="flex-1 cursor-pointer  py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {deleting ? (
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -228,6 +147,7 @@ function LimitModal({ onClose }) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [shareLink, setShareLink] = useState(null);
 
   const getStoredUser = () => {
@@ -257,6 +177,7 @@ export default function Dashboard() {
   const [links, setLinks] = useState([]);
   const [loadingLinks, setLoadingLinks] = useState(true);
   const [error, setError] = useState("");
+  const [accountLabels, setAccountLabels] = useState({});
 
   const [url, setUrl] = useState("");
   const [alias, setAlias] = useState("");
@@ -272,17 +193,26 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const [qrLink, setQrLink] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState(location.state?.filter || "All");
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Delete modal state
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [campaignModalLink, setCampaignModalLink] = useState(null);
 
   const totalClicks = links.reduce((sum, l) => sum + l.clicks, 0);
+  const totalPreClicks = links.reduce((sum, l) => sum + (l.preClicks || 0), 0);
   const activeLinks = links.filter((l) => l.active).length;
+  const inactiveLinks = links.length - activeLinks;
+  const canViewPreClicks = isOwner();
 
-  const isPremium = PREMIUM_USERS.includes(userEmail);
-  const FREE_LIMIT = isPremium ? Infinity : 1;
+  // const isPremium = PREMIUM_USERS.includes(userEmail);
+  // const FREE_LIMIT = isPremium ? Infinity : 1;
+  const isPremium = true;
+  const FREE_LIMIT = Infinity;
   const atLimit = !isPremium && links.length >= FREE_LIMIT;
 
   const calculateReturningUsers = () => {
@@ -300,6 +230,20 @@ export default function Dashboard() {
         });
       }
     });
+
+    useEffect(() => {
+      function handleClickOutside(event) {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setOpen(false);
+        }
+      }
+
+      document.addEventListener("mousedown", handleClickOutside);
+
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, []);
 
     let returningCount = 0;
     let uniqueDevices = 0;
@@ -319,32 +263,61 @@ export default function Dashboard() {
       return;
     }
 
-    fetchLinks();
-
-    // Poll for real-time updates every 3 seconds
-    const interval = setInterval(() => {
-      fetchLinks(true);
-    }, 3000);
-
-    return () => clearInterval(interval);
+    const loadDashboardData = async () => {
+      await syncPendingUrl(token);
+      fetchLinks();
+    };
+    loadDashboardData();
   }, [token]);
+
+  // ── Real-time Socket.IO listener (replaces polling) ──────────
+  useSocket("analytics:updated", (updatedUrl) => {
+    if (!updatedUrl) return;
+    setLinks((prev) =>
+      prev.map((l) => {
+        if (l.id !== updatedUrl._id) return l;
+        return {
+          ...l,
+          clicks: updatedUrl.clicks,
+          preClicks: updatedUrl.preClicks || 0,
+          clickLogs: updatedUrl.clickLogs || [],
+          active: updatedUrl.active,
+          labels: updatedUrl.labels || [],
+          campaigns: updatedUrl.campaigns || [],
+        };
+      })
+    );
+  });
 
   async function fetchLinks(background = false) {
     if (!background) setLoadingLinks(true);
     if (!background) setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        localStorage.removeItem("apiToken");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userName");
+        window.location.href = "/login";
+        return;
+      }
       const data = await res.json();
       if (data.success) {
-        const mapped = data.urls.map((u) => ({
+        if (data.labels) {
+          setAccountLabels(data.labels);
+        }
+        const sortedUrls = [...(data.urls || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const mapped = sortedUrls.map((u) => ({
           id: u._id,
           slug: u.shortCode,
           original: u.originalUrl,
           short: `${SHORTENER_DOMAIN}/${u.shortCode}`,
           clicks: u.clicks,
+          preClicks: u.preClicks || 0,
+          rawCreatedAt: u.createdAt,
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
@@ -352,6 +325,8 @@ export default function Dashboard() {
             ? new Date(u.expiresAt).toISOString().slice(0, 16)
             : null,
           clickLogs: u.clickLogs || [],
+          labels: u.labels || [],
+          campaigns: u.campaigns || [],
         }));
         setLinks(mapped);
       } else {
@@ -447,13 +422,16 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           originalUrl: finalUrl,
-          customAlias: alias,
+          customAlias: alias ? alias.toLowerCase().trim() : undefined,
           password: password || undefined,
           expiresAt: expiresAt || undefined,
         }),
       });
       const data = await res.json();
       if (data.success) {
+        if (data.url?._id) {
+          addNewLinkId(data.url._id);
+        }
         await fetchLinks();
         setUrl("");
         setAlias("");
@@ -474,11 +452,19 @@ export default function Dashboard() {
     }
   }
 
-  const filtered = links.filter(
-    (l) =>
-      l.slug.toLowerCase().includes(search.toLowerCase()) ||
-      l.original.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = links
+    .filter((l) => {
+      const matchesSearch =
+        l.slug.toLowerCase().includes(search.toLowerCase()) ||
+        l.original.toLowerCase().includes(search.toLowerCase());
+      const matchesFilter =
+        selectedFilter === "All" ||
+        (selectedFilter === "Active" && l.active) ||
+        (selectedFilter === "Inactive" && !l.active);
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => new Date(b.rawCreatedAt || b.createdAt) - new Date(a.rawCreatedAt || a.createdAt));
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -492,15 +478,45 @@ export default function Dashboard() {
         />
       )}
       {showLimitModal && <LimitModal onClose={() => setShowLimitModal(false)} />}
+      {campaignModalLink && (
+        <AddToCampaignModal
+          link={campaignModalLink}
+          existingCampaigns={(() => {
+            const campaignsMap = {};
+            links.forEach((l) => {
+              const linkCampaigns = new Set();
+              try {
+                const urlObj = new URL(l.original);
+                const campaign = urlObj.searchParams.get("utm_campaign");
+                if (campaign && campaign.trim()) linkCampaigns.add(campaign.trim());
+              } catch {}
+              if (Array.isArray(l.campaigns)) {
+                l.campaigns.forEach((c) => {
+                  const name = typeof c === "string" ? c : c?.name;
+                  if (name && name.trim()) linkCampaigns.add(name.trim());
+                });
+              }
+              linkCampaigns.forEach((name) => {
+                if (!campaignsMap[name]) campaignsMap[name] = { name, linksCount: 0 };
+                campaignsMap[name].linksCount += 1;
+              });
+            });
+            return Object.values(campaignsMap).sort((a, b) => b.linksCount - a.linksCount);
+          })()}
+          token={token}
+          onClose={() => setCampaignModalLink(null)}
+          onSuccess={() => fetchLinks()}
+        />
+      )}
 
       <div className="flex min-h-screen">
         <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} linksCount={links.length} FREE_LIMIT={FREE_LIMIT} isPremium={isPremium} />
 
         {/* ── Main ── */}
-        <main className="flex-1 min-w-0 md:ml-64 px-4 sm:px-6 md:px-8 py-6 md:py-8">
+        <main className="flex-1 min-w-0 md:ml-60 lg:ml-80 px-4 sm:px-6 md:px-8 py-6 md:py-8">
 
           {/* Top bar */}
-          <div className="flex items-center justify-between mb-6 gap-3">
+          <div className="flex items-center justify-between mb-2 md:mb-6  gap-1 md:gap-3">
             {/* Hamburger — mobile only */}
             <button
               className="md:hidden p-2 rounded-xl border border-slate-200 bg-white shadow-sm text-slate-600 hover:bg-slate-50 shrink-0"
@@ -546,11 +562,11 @@ export default function Dashboard() {
 
           {/* Create form */}
           {showForm && !atLimit && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 mb-5 shadow-sm">
-              <h2 className="font-bold text-slate-900 mb-4">Create Your Tracked Link</h2>
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 md:p-4 sm:p-6 mb-2 md:mb-5 shadow-sm">
+              <h2 className="font-bold text-slate-900 mb-2 md:mb-4">Create Your Tracked Link</h2>
               <form onSubmit={handleCreate} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                  <label className="block text-xs font-medium text-slate-600 mb-0.5 md:mb-1">
                     Destination URL *
                   </label>
                   <input
@@ -564,18 +580,18 @@ export default function Dashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                  <label className="block text-xs font-medium text-slate-600 mb-0.5 md:mb-1">
                     Custom Alias (optional)
                   </label>
                   <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
                     <span className="text-slate-400 text-sm pl-4 pr-1 whitespace-nowrap">
-                      brev.ly/
+                      redirect.curtio.io/
                     </span>
                     <input
                       type="text"
                       value={alias}
                       onChange={(e) =>
-                        setAlias(e.target.value.replace(/[^a-z0-9-]/gi, ""))
+                        setAlias(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
                       }
                       placeholder="my-link"
                       className="flex-1 py-2.5 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none min-w-0"
@@ -589,15 +605,15 @@ export default function Dashboard() {
                   onClick={() => setShowAdvanced(!showAdvanced)}
                   className="flex items-center gap-2 text-xs font-medium text-indigo-600 hover:text-indigo-800 transition-colors pt-1"
                 >
+                  {showAdvanced ? "Hide" : "Show"} advanced options.
                   {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  {showAdvanced ? "Hide" : "Show"} advanced options (UTM, password, expiry)
                 </button>
 
                 {showAdvanced && (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-4">
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 md:p-4 space-y-3 md:space-y-4">
                     {/* UTM Builder */}
                     <div>
-                      <div className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                      <div className="text-xs font-bold text-slate-700 mb-1 md:mb-2 flex items-center gap-1.5">
                         <TrendingUp size={12} /> UTM Parameters
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -627,7 +643,7 @@ export default function Dashboard() {
 
                     {/* Password */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 mb-1 md:mb-2">
                         <span className="flex items-center gap-1.5">
                           <Lock size={12} /> Password Protection (optional)
                         </span>
@@ -637,7 +653,7 @@ export default function Dashboard() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Leave blank for no password"
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
                       />
                       <p className="text-xs text-slate-400 mt-1">
                         Visitors must enter this password before being redirected.
@@ -646,7 +662,7 @@ export default function Dashboard() {
 
                     {/* Expiry */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                      <label className="block text-xs font-bold text-slate-700 mb-1 md:mb-2">
                         <span className="flex items-center gap-1.5">
                           <Clock size={12} /> Link Expiration (optional)
                         </span>
@@ -655,7 +671,7 @@ export default function Dashboard() {
                         type="datetime-local"
                         value={expiresAt}
                         onChange={(e) => setExpiresAt(e.target.value)}
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs md:text-sm text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
                       />
                       <p className="text-xs text-slate-400 mt-1">
                         Link will stop redirecting after this date and time.
@@ -692,18 +708,36 @@ export default function Dashboard() {
           )}
 
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          <div className={`grid grid-cols-2 sm:grid-cols-2 ${canViewPreClicks ? "lg:grid-cols-5 xl:grid-cols-5" : "lg:grid-cols-4 xl:grid-cols-4"} gap-2.5 sm:gap-4 mb-3 xl:mb-5`}>
+            <Link to="/dashboard/analytics" className="w-full">
+              <StatCard
+                icon={<ArrowUpRight size={16} className="text-green-600" />}
+                label="Redirected Clicks"
+                value={totalClicks.toLocaleString()}
+                sub="Completed redirects"
+              />
+            </Link>
+            {canViewPreClicks && (
+              <Link to="/dashboard/preclick" className="w-full">
+                <StatCard
+                  icon={<ArrowDownRight size={16} className="text-violet-500" />}
+                  label="Non-Redirected Clicks"
+                  value={totalPreClicks.toLocaleString()}
+                  sub="no redirect"
+                />
+              </Link>
+            )}
             <StatCard
-              icon={<LinkIcon size={16} className="text-indigo-600" />}
-              label="Total Links"
-              value={links.length}
-              sub={`${activeLinks} active · ${FREE_LIMIT} limit`}
+              icon={<ToggleRight size={16} className="text-green-500" />}
+              label="Active Links"
+              value={activeLinks.toLocaleString()}
+              sub="Currently redirecting"
             />
             <StatCard
-              icon={<MousePointerClick size={16} className="text-orange-500" />}
-              label="Total Clicks"
-              value={totalClicks.toLocaleString()}
-              sub="All time"
+              icon={<ToggleLeft size={16} className="text-slate-400" />}
+              label="Inactive Links"
+              value={inactiveLinks.toLocaleString()}
+              sub="Disabled links"
             />
             <StatCard
               icon={<TrendingUp size={16} className="text-indigo-600" />}
@@ -713,17 +747,61 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Search */}
-          <div className="relative mb-4">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search links..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder-slate-400 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
+          <div className="flex items-center gap-3 mb-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search
+                size={15}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search links..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder-slate-400 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Filter Dropdown */}
+            <div className="relative w-40" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 hover:border-slate-300 focus:outline-none cursor-pointer"
+              >
+                <span>{selectedFilter}</span>
+
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform duration-200 ${open ? "rotate-180" : ""
+                    }`}
+                />
+              </button>
+
+              {open && (
+                <div className="absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-20">
+                  {["All", "Active", "Inactive"].map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => {
+                        setSelectedFilter(item);
+                        setOpen(false);
+                      }}
+                      className={`w-full px-4 py-2.5 text-left text-sm cursor-pointer transition-colors ${selectedFilter === item
+                        ? "bg-indigo-50 text-indigo-600 font-medium"
+                        : "text-slate-700 hover:bg-slate-100"
+                        }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
 
           {/* ── Links Table — only the table scrolls on x-axis ── */}
           <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
@@ -745,7 +823,7 @@ export default function Dashboard() {
             ) : (
               /* Scroll container — ONLY horizontal, no vertical scroll */
               <div className="overflow-x-auto">
-                <table className="w-full" style={{ minWidth: "640px" }}>
+                <table className="w-full" style={{ minWidth: "780px" }}>
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50">
                       <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3 whitespace-nowrap">
@@ -760,15 +838,26 @@ export default function Dashboard() {
                       <th className="text-center text-xs font-semibold text-slate-500 px-5 py-3 whitespace-nowrap">
                         Status
                       </th>
+                      <th className="text-center text-xs font-semibold text-slate-500 px-5 py-3 whitespace-nowrap">
+                        Labels
+                      </th>
                       <th className="text-right text-xs font-semibold text-slate-500 px-5 py-3 whitespace-nowrap">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((link, i) => (
+                    {filtered.map((link, i) => {
+                      const isNew = isLinkNew(link);
+                      return (
                       <tr
                         key={link.id}
+                        onClick={() => {
+                          if (isNew) {
+                            markLinkAsViewed(link.id);
+                            setLinks((prev) => [...prev]);
+                          }
+                        }}
                         className={`border-b border-slate-50 hover:bg-slate-50/50 transition-colors ${i === filtered.length - 1 ? "border-b-0" : ""
                           }`}
                       >
@@ -779,8 +868,23 @@ export default function Dashboard() {
                               <Zap size={12} className="text-indigo-500" fill="currentColor" />
                             </div>
                             <div className="min-w-0">
-                              <div className="text-sm font-semibold text-indigo-600 whitespace-nowrap">
-                                {link.short}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="text-sm font-semibold text-indigo-600 whitespace-nowrap">
+                                  {link.short}
+                                </div>
+                                {isNew && (
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      markLinkAsViewed(link.id);
+                                      setLinks((prev) => [...prev]);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full cursor-pointer hover:bg-amber-600 transition-colors shadow-sm animate-pulse"
+                                    title="New link! Click to dismiss ticket"
+                                  >
+                                    NEW <X size={10} />
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-xs text-slate-400 whitespace-nowrap">
@@ -825,9 +929,25 @@ export default function Dashboard() {
                           </button>
                         </td>
 
+                        {/* Labels */}
+                        <td className="px-5 py-4 text-center" style={{ minWidth: "140px" }}>
+                          <LabelCell
+                            link={link}
+                            accountLabels={accountLabels}
+                            onLabelsChanged={fetchLinks}
+                          />
+                        </td>
+
                         {/* Actions */}
                         <td className="px-5 py-4" style={{ minWidth: "150px" }}>
                           <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setCampaignModalLink(link)}
+                              title="Add to Campaign"
+                              className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                            >
+                              <Target size={14} />
+                            </button>
                             <button
                               onClick={() => setShareLink(link)}
                               title="Share on WhatsApp"
@@ -884,7 +1004,8 @@ export default function Dashboard() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -894,7 +1015,7 @@ export default function Dashboard() {
           <div className="mt-4 flex items-start gap-2 text-xs text-slate-400">
             <Info size={13} className="shrink-0 mt-0.5" />
             <span>
-              Free plan: up to {FREE_LIMIT} tracked links. Delete a link to free up a slot.
+              Free plan: up to {FREE_LIMIT} tracked links.
             </span>
           </div>
         </main>

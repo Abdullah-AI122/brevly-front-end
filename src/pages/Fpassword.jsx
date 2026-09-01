@@ -9,7 +9,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-const baseUrl = `${import.meta.env.VITE_API_BASE_URL}/auth`;
+import env from "../../Config/env";
+const baseUrl = `${env.BACKEND_URL}/auth`;
 
 export default function ForgotPassword() {
   const [step, setStep] = useState(1);
@@ -102,7 +103,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row">
 
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 flex-col justify-between p-12 relative overflow-hidden">
@@ -118,7 +119,7 @@ export default function ForgotPassword() {
           </div>
 
           <span className="text-2xl font-extrabold text-white tracking-tight">
-            Brevly
+            Curtio
           </span>
         </Link>
 
@@ -134,7 +135,7 @@ export default function ForgotPassword() {
 
             <div>
               <div className="text-white font-semibold text-sm">
-                Brevly Security
+                Curtio Security
               </div>
 
               <div className="text-indigo-300 text-sm">
@@ -146,26 +147,26 @@ export default function ForgotPassword() {
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
 
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm sm:max-w-md bg-white lg:bg-transparent p-6 sm:p-8 lg:p-0 rounded-2xl lg:rounded-none shadow-sm lg:shadow-none border border-slate-200/80 lg:border-none">
 
           {/* Mobile Logo */}
-          <Link to="/" className="flex lg:hidden items-center gap-2 mb-8">
+          <Link to="/" className="flex lg:hidden items-center gap-2 mb-6 sm:mb-8">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <Zap size={16} className="text-white" fill="white" />
             </div>
 
             <span className="text-xl font-extrabold text-slate-900">
-              Brevly
+              Curtio
             </span>
           </Link>
 
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-1">
             Forgot Password
           </h1>
 
-          <p className="text-slate-500 mb-8">
+          <p className="text-xs sm:text-sm text-slate-500 mb-6 sm:mb-8">
             {step === 1
               ? "Enter your email to receive OTP."
               : "Verify OTP and create a new password."}

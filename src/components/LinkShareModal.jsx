@@ -32,7 +32,7 @@ export default function ShareModal({ link, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -81,7 +81,7 @@ export default function ShareModal({ link, onClose }) {
 
         <button
           onClick={onClose}
-          className="block w-full text-center text-slate-500 hover:text-slate-800 text-sm py-2 mt-2 transition-colors"
+          className="block w-full cursor-pointer text-center text-slate-500 hover:text-slate-800 text-sm py-2 mt-1 hover:bg-gray-100 rounded-xl  transition-colors"
         >
           Close
         </button>

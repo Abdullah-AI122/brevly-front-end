@@ -1,199 +1,40 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Zap,
-  Copy,
-  Check,
-  BarChart2,
-  ExternalLink,
-  Trash2,
-  Link as LinkIcon,
-  TrendingUp,
-  MousePointerClick,
-  ToggleLeft,
-  ToggleRight,
-  QrCode,
-  Lock,
-  Clock,
-  Menu,
-  X,
-  LogOut,
-  Pencil,
-  Info,
-  AlertCircle,
-  Smartphone,
-  Globe,
-  Activity,
-  Funnel,
-  ChevronLeft,
-  ChevronRight,
+import useSocket from "../socket/useSocket";
+import { Copy,Check,BarChart2,Trash2,Link as LinkIcon, MousePointerClick,ToggleLeft,ToggleRight,QrCode,Menu,AlertCircle,Smartphone,Globe,Activity,Funnel, Target, X,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
+import {AreaChart,Area,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer,PieChart,Pie,Cell,BarChart,Bar,
 } from "recharts";
 import { SHORTENER_DOMAIN } from "../components/Shortner";
 import Sidebar from "../components/Sidebar";
 import Filter from "../components/filter";
 import ShareModal from "../components/LinkShareModal";
+import LabelCell from "../components/LabelCell";
+import AddToCampaignModal from "../components/AddToCampaignModal";
+import { isLinkNew, markLinkAsViewed } from "../lib/newLinkTracker";
 
 const FREE_LIMIT = 100;
-import {
-  FaUpwork,
-  FaConfluence,
-  FaMountainSun,
-  FaSignalMessenger,
-  FaSlack,
-  FaTrello,
-  FaTwitch,
-  FaYahoo,
-} from "react-icons/fa6";
-import {
-  FaDiscord,
-  FaFacebook,
-  FaInstagram,
-  FaLine,
-  FaLinkedin,
-  FaPinterest,
-  FaReddit,
-  FaSignal,
-  FaSnapchat,
-  FaTelegramPlane,
-  FaTiktok,
-  FaTwitter,
-  FaViber,
-  FaWhatsapp,
-  FaFacebookMessenger,
-  FaYoutube,
-  FaChrome,
-  FaFirefox,
-  FaSafari,
-  FaEdge,
-  FaOpera,
-  FaInternetExplorer,
-} from "react-icons/fa";
-import { IoLogoWechat } from "react-icons/io5";
-import { IoIosMail } from "react-icons/io";
-import { PiMicrosoftOutlookLogoDuotone } from "react-icons/pi";
-import { BiLogoMicrosoftTeams } from "react-icons/bi";
-import {
-  SiAsana,
-  SiGmail,
-  SiGooglemeet,
-  SiKik,
-  SiNotion,
-  SiThunderbird,
-  SiZoom,
-  SiTorbrowser,
-  SiBrave,
-  SiClickup,
-} from "react-icons/si";
-const PREMIUM_USERS = ["mrabdullahamjid33@gmail.com", "mirhussainjan10387@gmail.com"];
+import {FaWhatsapp} from "react-icons/fa";
+import env from "../../Config/env";
+
 const COLORS = ["#4F46E5", "#F97316", "#22C55E", "#EAB308", "#EC4899"];
 
-const REFERER_RULES = [
-  { source: "WhatsApp", pattern: /whatsapp/i, color: "#4F46E5", icon: FaWhatsapp },
-  { source: "Messenger", pattern: /messenger/i, color: "#4F46E5", icon: FaFacebookMessenger },
-  { source: "Facebook", pattern: /facebook|fbav|fban|fb_iab/i, color: "#4F46E5", icon: FaFacebook },
-  { source: "Instagram", pattern: /instagram/i, color: "#4F46E5", icon: FaInstagram },
-  { source: "TikTok", pattern: /tiktok|bytedance/i, color: "#4F46E5", icon: FaTiktok },
-  { source: "YouTube", pattern: /youtube|youtu\.be/i, color: "#4F46E5", icon: FaYoutube },
-  { source: "LinkedIn", pattern: /linkedin/i, color: "#4F46E5", icon: FaLinkedin },
-  { source: "Twitter", pattern: /twitter|t\.co/i, color: "#4F46E5", icon: FaTwitter },
-  { source: "Reddit", pattern: /reddit/i, color: "#4F46E5", icon: FaReddit },
-  { source: "Pinterest", pattern: /pinterest/i, color: "#4F46E5", icon: FaPinterest },
-  { source: "Snapchat", pattern: /snapchat/i, color: "#4F46E5", icon: FaSnapchat },
-  { source: "Discord", pattern: /discord/i, color: "#4F46E5", icon: FaDiscord },
-  { source: "Telegram", pattern: /telegram|t\.me/i, color: "#4F46E5", icon: FaTelegramPlane },
-  { source: "Teams", pattern: /teams\.microsoft|teams\.cdn\.office|onecdn\.static\.microsoft/i, color: "#4F46E5", icon: BiLogoMicrosoftTeams },
-  { source: "Slack", pattern: /slack/i, color: "#4F46E5", icon: FaSlack },
-  { source: "Gmail", pattern: /mail\.google/i, color: "#4F46E5", icon: SiGmail },
-  { source: "Outlook", pattern: /outlook/i, color: "#4F46E5", icon: PiMicrosoftOutlookLogoDuotone },
-  { source: "WeChat", pattern: /wechat|micromessenger/i, color: "#4F46E5", icon: IoLogoWechat },
-  { source: "Line", pattern: /line/i, color: "#4F46E5", icon: FaLine },
-  { source: "Viber", pattern: /viber/i, color: "#4F46E5", icon: FaViber },
-  // ── newly added, matches icons you already imported ──
-  { source: "Asana", pattern: /asana/i, color: "#4F46E5", icon: SiAsana },
-  { source: "Trello", pattern: /trello/i, color: "#4F46E5", icon: FaTrello },
-  { source: "ClickUp", pattern: /clickup/i, color: "#4F46E5", icon: SiClickup },
-  { source: "Confluence", pattern: /atlassian|confluence/i, color: "#4F46E5", icon: FaConfluence },
-  { source: "Upwork", pattern: /upwork/i, color: "#4F46E5", icon: FaUpwork},
-  { source: "Zoom", pattern: /zoom\.us/i, color: "#4F46E5", icon: SiZoom },
-  { source: "Google Meet", pattern: /meet\.google/i, color: "#4F46E5", icon: SiGooglemeet },
-  { source: "Notion", pattern: /notion\.so/i, color: "#4F46E5", icon: SiNotion },
-  { source: "Twitch", pattern: /twitch/i, color: "#4F46E5", icon: FaTwitch },
-  { source: "Yahoo", pattern: /yahoo/i, color: "#4F46E5", icon: FaYahoo },
-  { source: "Signal", pattern: /signal/i, color: "#4F46E5", icon: FaSignal },
-];
-
-const BROWSER_RULES = [
-  { source: "Hola Browser", pattern: /Hola/i, color: "#4F46E5", icon: Globe },
-  { source: "Opera", pattern: /Opera|OPR\//i, color: "#4F46E5", icon: FaOpera },
-  { source: "Edge", pattern: /Edg\//i, color: "#4F46E5", icon: FaEdge },
-  { source: "Brave", pattern: /Brave/i, color: "#4F46E5", icon: SiBrave },
-  { source: "Tor", pattern: /TorBrowser/i, color: "#4F46E5", icon: SiTorbrowser },
-  { source: "Firefox", pattern: /Firefox|FxiOS/i, color: "#4F46E5", icon: FaFirefox },
-  { source: "Internet Explorer", pattern: /Trident|MSIE/i, color: "#4F46E5", icon: FaInternetExplorer },
-  { source: "Chrome", pattern: /Chrome|CriOS/i, color: "#4F46E5", icon: FaChrome },
-  { source: "Safari", pattern: /Safari/i, color: "#4F46E5", icon: FaSafari },
-];
-
-function detectSource(log) {
-  const ref = log.referer || "";
-  const ua = log.userAgent || "";
-
-  // 1. Try to identify a real platform from referer
-  for (const rule of REFERER_RULES) {
-    if (rule.pattern.test(ref)) return rule.source;
-  }
-
-  // 2. Some apps leave a signature in the User-Agent instead of a referer
-  for (const rule of REFERER_RULES) {
-    if (rule.pattern.test(ua)) return rule.source;
-  }
-
-  // 3. If backend already tagged a real platform (not a browser fallback), trust it
-  const isBrowserLabel = BROWSER_RULES.some((r) => r.source === log.source);
-  if (log.source && log.source !== "unknown" && log.source !== "Direct" && !isBrowserLabel) {
-    return log.source;
-  }
-
-  // 4. Otherwise fall back to browser detection
-  for (const rule of BROWSER_RULES) {
-    if (rule.pattern.test(ua)) return rule.source;
-  }
-
-  return "Direct";
-}
-
-const ALL_RULES = [...REFERER_RULES, ...BROWSER_RULES];
-const platformIconMap = Object.fromEntries(
-  ALL_RULES.map((r) => [r.source, r.icon]),
-);
+import {REFERER_RULES,BROWSER_RULES,detectSource,ALL_RULES,platformIconMap,} from "../lib/sourceDetection";
+import QrModal from "../components/ui/QrModal";
 
 function StatCard({ icon, label, value, sub, className = "" }) {
   return (
     <div
-      className={`bg-white border border-slate-100 rounded-2xl p-5 shadow-sm ${className}`}
+      className={`bg-white border border-slate-100 min-h-[5.5rem] md:min-h-[7.5rem] rounded-2xl p-3 md:p-5 shadow-sm hover:border-indigo-400 hover:shadow-md hover:shadow-indigo-200 transition-all duration-300 cursor-pointer ${className}`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-slate-500">{label}</span>
-        <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center">
+      <div className="flex items-center justify-between mb-1.5 md:mb-3 gap-1">
+        <span className="text-[11px] sm:text-xs md:text-sm font-medium text-slate-500 truncate">{label}</span>
+        <div className="w-6 h-6 md:w-9 md:h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
           {icon}
         </div>
       </div>
-      <div className="text-3xl font-extrabold text-slate-900">{value}</div>
-      {sub && <div className="text-xs text-slate-400 mt-1">{sub}</div>}
+      <div className="text-lg sm:text-xl md:text-3xl font-extrabold text-slate-900 truncate">{value}</div>
+      {sub && <div className="text-[10px] sm:text-xs xl:text-sm text-slate-400 mt-0.5 sm:mt-1 truncate">{sub}</div>}
     </div>
   );
 }
@@ -220,109 +61,12 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-function QrModal({ link, onClose }) {
-  const canvasRef = useRef(null);
-  const [qrReady, setQrReady] = useState(false);
-  const [qrError, setQrError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    setQrReady(false);
-    setQrError("");
-
-    import("qrcode")
-      .then((QRCode) => {
-        if (cancelled || !canvasRef.current) return;
-        QRCode.toCanvas(
-          canvasRef.current,
-          link.short,
-          {
-            width: 200,
-            margin: 2,
-            color: { dark: "#4F46E5", light: "#F8FAFC" },
-          },
-          (err) => {
-            if (cancelled) return;
-            if (err) {
-              setQrError("Failed to generate QR code.");
-            } else {
-              setQrReady(true);
-            }
-          },
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setQrError("Could not load QR library.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [link.short]);
-
-  function handleDownload() {
-    if (!canvasRef.current) return;
-    const dataUrl = canvasRef.current.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `${link.slug}-qr.png`;
-    a.click();
-  }
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="font-extrabold text-slate-900 text-lg mb-1">QR Code</h3>
-        <p className="text-slate-500 text-sm mb-5 break-all">{link.short}</p>
-
-        <div className="bg-slate-50 rounded-xl p-4 flex items-center justify-center mb-5 min-h-[216px]">
-          {qrError ? (
-            <p className="text-xs text-red-500">{qrError}</p>
-          ) : (
-            <>
-              {!qrReady && (
-                <div className="absolute">
-                  <div className="w-8 h-8 border-4 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                </div>
-              )}
-              <canvas
-                ref={canvasRef}
-                className={`rounded-lg transition-opacity duration-300 ${qrReady ? "opacity-100" : "opacity-0"}`}
-              />
-            </>
-          )}
-        </div>
-
-        {!qrError && (
-          <button
-            onClick={handleDownload}
-            disabled={!qrReady}
-            className="block w-full text-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl mb-3 transition-colors"
-          >
-            Download PNG
-          </button>
-        )}
-        <button
-          onClick={onClose}
-          className="block w-full text-center text-slate-500 hover:text-slate-800 text-sm py-2 transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function DeleteModal({ onConfirm, onCancel, deleting }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-80 flex items-center justify-center p-4"
       onClick={() => !deleting && onCancel()}
     >
       <div
@@ -343,14 +87,14 @@ function DeleteModal({ onConfirm, onCancel, deleting }) {
           <button
             onClick={onCancel}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="flex-1 py-2.5 cursor-pointer rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            className="flex-1 cursor-pointer py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {deleting ? (
               <svg
@@ -411,8 +155,10 @@ export default function AnalytcsDashboard() {
 
   const token = localStorage.getItem("apiToken");
 
-  const isPremium = PREMIUM_USERS.includes(userEmail);
-  const FREE_LIMIT = isPremium ? Infinity : 1;
+  // const isPremium = PREMIUM_USERS.includes(userEmail);
+  // const FREE_LIMIT = isPremium ? Infinity : 1;
+  const isPremium = true;
+  const FREE_LIMIT = Infinity;
 
   // Helper function to format date as YYYY-MM-DD
   const formatDateToString = (date) => {
@@ -435,6 +181,7 @@ export default function AnalytcsDashboard() {
 
   const [rawUrls, setRawUrls] = useState([]);
   const [links, setLinks] = useState([]);
+  const [accountLabels, setAccountLabels] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(null);
@@ -442,6 +189,7 @@ export default function AnalytcsDashboard() {
   const [shareLink, setShareLink] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [campaignModalLink, setCampaignModalLink] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [startDate, setStartDate] = useState(defaultStartDate);
@@ -518,32 +266,64 @@ export default function AnalytcsDashboard() {
     }
 
     fetchUrls();
-
-    // Poll for real-time updates every 3 seconds
-    const interval = setInterval(() => {
-      fetchUrls(true);
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, [token]);
+
+  // ── Real-time Socket.IO listener (replaces polling) ──────────
+  useSocket("analytics:updated", (updatedUrl) => {
+    if (!updatedUrl) return;
+
+    setRawUrls((prev) =>
+      prev.map((u) => (u._id === updatedUrl._id ? updatedUrl : u))
+    );
+
+    setLinks((prev) =>
+      prev.map((l) => {
+        if (l.id !== updatedUrl._id) return l;
+        return {
+          ...l,
+          clicks: updatedUrl.clicks,
+          preClicks: updatedUrl.preClicks || 0,
+          preClickLogs: updatedUrl.preClickLogs || [],
+          clickLogs: updatedUrl.clickLogs || [],
+          active: updatedUrl.active,
+          labels: updatedUrl.labels || [],
+          campaigns: updatedUrl.campaigns || [],
+        };
+      })
+    );
+  });
 
   async function fetchUrls(background = false) {
     if (!background) setLoading(true);
     if (!background) setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) {
+        localStorage.removeItem("apiToken");
+        localStorage.removeItem("userEmail");
+        localStorage.removeItem("userName");
+        window.location.href = "/login";
+        return;
+      }
       const data = await res.json();
       if (data.success) {
-        setRawUrls(data.urls);
-        const mapped = data.urls.map((u) => ({
+        const sortedUrls = [...(data.urls || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setRawUrls(sortedUrls);
+        if (data.labels) {
+          setAccountLabels(data.labels);
+        }
+        const mapped = sortedUrls.map((u) => ({
           id: u._id,
           slug: u.shortCode,
           original: u.originalUrl,
           short: `${SHORTENER_DOMAIN}/${u.shortCode}`,
           clicks: u.clicks,
+          preClicks: u.preClicks || 0,
+          preClickLogs: u.preClickLogs || [],
+          rawCreatedAt: u.createdAt,
           createdAt: new Date(u.createdAt).toISOString().slice(0, 10),
           active: u.active,
           password: u.password,
@@ -551,6 +331,8 @@ export default function AnalytcsDashboard() {
             ? new Date(u.expiresAt).toISOString().slice(0, 16)
             : null,
           clickLogs: u.clickLogs || [],
+          labels: u.labels || [],
+          campaigns: u.campaigns || [],
         }));
         setLinks(mapped);
       } else {
@@ -580,7 +362,7 @@ export default function AnalytcsDashboard() {
     setDeleting(true);
     setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls/${slug}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -605,7 +387,7 @@ export default function AnalytcsDashboard() {
   async function handleToggle(id, slug) {
     setError("");
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
+      const baseUrl = env.BACKEND_URL;
       const res = await fetch(`${baseUrl}/urls/${slug}/toggle`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
@@ -670,7 +452,9 @@ export default function AnalytcsDashboard() {
   });
 
   const totalUrls = links.length;
-  const totalClicks = allFilteredLogs.length;
+  // Exact stored counter, same as Dashboard.jsx. This page reports redirected
+  // clicks only — non-redirected clicks live on /dashboard/preclick.
+  const totalClicks = links.reduce((sum, l) => sum + (l.clicks || 0), 0);
   const activeLinks = links.filter((l) => l.active).length;
   const inactiveLinks = totalUrls - activeLinks;
 
@@ -786,7 +570,27 @@ export default function AnalytcsDashboard() {
 
 
 
-  const topLinks = [...links].sort((a, b) => b.clicks - a.clicks).slice(0, 5);
+  const topLinks = [...links].sort((a, b) => new Date(b.rawCreatedAt || b.createdAt) - new Date(a.rawCreatedAt || a.createdAt));
+
+  const isDefaultDateRange = startDate === defaultStartDate && endDate === defaultEndDate;
+
+  let dateBadgeText = "Last 7 Days";
+  let dateDescriptionText = <>Total clicks recorded across all links in the <strong className="text-slate-900">last 7 days</strong></>;
+
+  if (!isDefaultDateRange && startDate && endDate) {
+    const formattedStart = new Date(startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const formattedEnd = new Date(endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    dateBadgeText = `${formattedStart} - ${formattedEnd}`;
+    dateDescriptionText = <>Total clicks recorded across all links from <strong className="text-slate-900">{formattedStart}</strong> to <strong className="text-slate-900">{formattedEnd}</strong></>;
+  } else if (!isDefaultDateRange && startDate) {
+    const formattedStart = new Date(startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    dateBadgeText = `From ${formattedStart}`;
+    dateDescriptionText = <>Total clicks recorded across all links since <strong className="text-slate-900">{formattedStart}</strong></>;
+  } else if (!isDefaultDateRange && endDate) {
+    const formattedEnd = new Date(endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    dateBadgeText = `Until ${formattedEnd}`;
+    dateDescriptionText = <>Total clicks recorded across all links up to <strong className="text-slate-900">{formattedEnd}</strong></>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -797,6 +601,36 @@ export default function AnalytcsDashboard() {
           onConfirm={performDelete}
           onCancel={() => setDeleteModal(null)}
           deleting={deleting}
+        />
+      )}
+      {campaignModalLink && (
+        <AddToCampaignModal
+          link={campaignModalLink}
+          existingCampaigns={(() => {
+            const campaignsMap = {};
+            links.forEach((l) => {
+              const linkCampaigns = new Set();
+              try {
+                const urlObj = new URL(l.original);
+                const campaign = urlObj.searchParams.get("utm_campaign");
+                if (campaign && campaign.trim()) linkCampaigns.add(campaign.trim());
+              } catch { }
+              if (Array.isArray(l.campaigns)) {
+                l.campaigns.forEach((c) => {
+                  const name = typeof c === "string" ? c : c?.name;
+                  if (name && name.trim()) linkCampaigns.add(name.trim());
+                });
+              }
+              linkCampaigns.forEach((name) => {
+                if (!campaignsMap[name]) campaignsMap[name] = { name, linksCount: 0 };
+                campaignsMap[name].linksCount += 1;
+              });
+            });
+            return Object.values(campaignsMap).sort((a, b) => b.linksCount - a.linksCount);
+          })()}
+          token={token}
+          onClose={() => setCampaignModalLink(null)}
+          onSuccess={() => fetchUrls()}
         />
       )}
 
@@ -810,11 +644,11 @@ export default function AnalytcsDashboard() {
         />
 
         {/* ── Main Content Area ── */}
-        <main className="flex-1 min-w-0 md:ml-64 px-4 sm:px-6 md:px-8 py-6 md:py-8 space-y-6">
+        <main className="flex-1 min-w-0 md:ml-60 lg:ml-80 px-1.5 sm:px-6 md:px-8 py-6 md:py-8 space-y-6">
           {/* Top Header */}
           <main className="flex items-center justify-between">
             <div>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-1 md:gap-3">
                 <button
                   className="md:hidden p-2 rounded-xl border border-slate-200 bg-white shadow-sm text-slate-600 hover:bg-slate-50 shrink-0"
                   onClick={() => setSidebarOpen(true)}
@@ -823,16 +657,17 @@ export default function AnalytcsDashboard() {
                 </button>
 
                 <div className="min-w-0">
-                  <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 truncate">
-                    Analytics Dashboard
+                  <h1 className="text-sm md:text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 truncate">
+                    Redirected Link Dashboard
                   </h1>
-                  <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
+                  <p className="text-slate-500 text-xs text-xs mt-0.5">
                     Understand user engagement and link performance globally.
                   </p>
                 </div>
               </div>
             </div>
-            <div>
+            <div className="flex items-center gap-2">
+
               <button
                 onClick={() => setFilterOpen(!filterOpen)}
                 className={`px-3 py-2 border rounded-xl shadow-sm cursor-pointer flex items-center gap-2 transition-colors ${filterOpen ? "bg-indigo-50 border-indigo-200 text-indigo-600" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"}`}
@@ -906,49 +741,56 @@ export default function AnalytcsDashboard() {
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={<LinkIcon size={18} className="text-indigo-600" />}
-              label="Total Links"
-              value={totalUrls.toLocaleString()}
-              sub="Created URLs"
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            <Link to="/dashboard">
+              <StatCard
+                icon={<LinkIcon size={18} className="text-indigo-600" />}
+                label="Total Links"
+                value={totalUrls.toLocaleString()}
+                sub="Created URLs"
+              />
+            </Link>
+
             <StatCard
               icon={<MousePointerClick size={18} className="text-orange-500" />}
-              label="Total Clicks"
+              label="Redirected Clicks"
               value={totalClicks.toLocaleString()}
               sub="All time traffic"
             />
-            <StatCard
+            <Link to="/dashboard" state={{ filter: "Active" }}><StatCard
               icon={<Activity size={18} className="text-green-500" />}
               label="Active Links"
               value={activeLinks.toLocaleString()}
               sub="Currently redirecting"
             />
-            <StatCard
+            </Link>
+            <Link to="/dashboard" state={{ filter: "Inactive" }}><StatCard
               icon={<ToggleLeft size={18} className="text-slate-400" />}
               label="Inactive Links"
               value={inactiveLinks.toLocaleString()}
               sub="Disabled links"
             />
+            </Link>
           </div>
 
           {/* Clicks Over Time Aggregated Chart */}
-          <Card className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+          <Card className="p-3 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 xl:mb-5 mb-2">
               <div>
-                <h2 className="text-base font-bold text-slate-900">
+                <h2 className="text-sm sm:text-base font-bold text-slate-900">
                   Aggregate Traffic Trend
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Total clicks recorded across all links in the last 7 days
+                  {dateDescriptionText}
                 </p>
               </div>
-              <div className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full w-max">
-                Last 7 Days
-              </div>
+              {isDefaultDateRange && (
+                <div className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full w-max">
+                  {dateBadgeText}
+                </div>
+              )}
             </div>
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={240}>
               <AreaChart
                 data={clickHistory}
                 margin={{ top: 4, right: 0, left: -20, bottom: 0 }}
@@ -992,13 +834,13 @@ export default function AnalytcsDashboard() {
           </Card>
 
           {/* Referrers + Devices Row */}
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Referrer Breakdown */}
-            <Card className="p-6">
-              <h2 className="text-base font-bold text-slate-900 mb-1">
+            <Card className="p-4 sm:p-6">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
                 Browser Breakdown
               </h2>
-              <p className="text-xs text-slate-400 mb-5">
+              <p className="text-xs text-slate-400 mb-4">
                 Hits per browser — Chrome, Edge, Safari and more
               </p>
               {referrerData.length > 0 ? (
@@ -1066,22 +908,22 @@ export default function AnalytcsDashboard() {
             </Card>
 
             {/* Device Breakdown */}
-            <Card className="p-6">
-              <h2 className="text-base font-bold text-slate-900 mb-1">
+            <Card className="p-4 sm:p-6">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
                 Device Breakdown
               </h2>
-              <p className="text-xs text-slate-400 mb-5">
+              <p className="text-xs text-slate-400 mb-4">
                 Distribution of user device types across all clicks
               </p>
               {finalDeviceData.length > 0 ? (
-                <div className="flex items-center gap-4">
-                  <ResponsiveContainer width="55%" height={180}>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <ResponsiveContainer width="100%" height={180} className="max-w-[220px]">
                     <PieChart>
                       <Pie
                         data={finalDeviceData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
+                        innerRadius={45}
                         outerRadius={70}
                         paddingAngle={3}
                         dataKey="value"
@@ -1100,7 +942,7 @@ export default function AnalytcsDashboard() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="space-y-2 flex-1">
+                  <div className="space-y-2 w-full sm:w-auto flex-1">
                     {finalDeviceData.map((d, i) => (
                       <div key={d.name} className="flex items-center gap-2">
                         <div
@@ -1132,17 +974,17 @@ export default function AnalytcsDashboard() {
           </div>
 
           {/* Geographic Breakdown & Top Links Row */}
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Country Share */}
-            <Card className="p-6 lg:col-span-1">
-              <h2 className="text-base font-bold text-slate-900 mb-1">
+            <Card className="p-4 sm:p-6 lg:col-span-1">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
                 Geographic Share
               </h2>
               <p className="text-xs text-slate-400 mb-4">
                 Estimated visitor origins based on click patterns
               </p>
               {finalGeoData.length > 0 ? (
-                <div className="space-y-3.5">
+                <div className="space-y-3">
                   {finalGeoData.map((geo, i) => {
                     const max = finalGeoData[0]?.clicks || 1;
                     const pct = Math.round((geo.clicks / max) * 100);
@@ -1151,7 +993,7 @@ export default function AnalytcsDashboard() {
                         key={geo.country}
                         className="flex items-center gap-3"
                       >
-                        <span className="text-xl w-6 text-center shrink-0">
+                        <span className="text-lg sm:text-xl w-6 text-center shrink-0">
                           {geo.flag}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -1160,7 +1002,7 @@ export default function AnalytcsDashboard() {
                               {geo.country}
                             </span>
 
-                            <span className="text-xs font-bold text-slate-800 ml-2">
+                            <span className="text-xs font-bold text-slate-800 ml-2 shrink-0">
                               {geo.clicks.toLocaleString()}
                             </span>
                           </div>
@@ -1199,7 +1041,7 @@ export default function AnalytcsDashboard() {
             </Card>
 
             {/* Top Performing Links */}
-            <Card className="p-6 lg:col-span-2 overflow-hidden min-w-0">
+            <Card className="p-4 sm:p-6 lg:col-span-2 overflow-hidden min-w-0">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-base font-bold text-slate-900">
                   Top Performing Links
@@ -1215,13 +1057,14 @@ export default function AnalytcsDashboard() {
               <div className="overflow-x-auto">
                 <table
                   className="w-full text-left border-collapse"
-                  style={{ minWidth: "600px" }}
+                  style={{ minWidth: "700px" }}
                 >
                   <thead>
                     <tr className="border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
                       <th className="py-2.5 pr-3">Short Link</th>
                       <th className="py-2.5 px-3 text-right">Clicks</th>
                       <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Labels</th>
                       <th className="py-2.5 pl-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -1229,21 +1072,44 @@ export default function AnalytcsDashboard() {
                     {topLinks.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={4}
+                          colSpan={5}
                           className="text-center py-8 text-slate-400 text-sm"
                         >
                           No links created yet.
                         </td>
                       </tr>
                     ) : (
-                      topLinks.map((link) => (
+                      topLinks.map((link) => {
+                        const isNew = isLinkNew(link);
+                        return (
                         <tr
                           key={link.id}
+                          onClick={() => {
+                            if (isNew) {
+                              markLinkAsViewed(link.id);
+                              setLinks((prev) => [...prev]);
+                            }
+                          }}
                           className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors text-sm"
                         >
-                          <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[200px] truncate">
+                          <td className="py-3 pr-3 font-semibold text-indigo-600 max-w-[220px]">
                             <div>
-                              <div className="truncate">{link.short}</div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <div className="truncate">{link.short}</div>
+                                {isNew && (
+                                  <span
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      markLinkAsViewed(link.id);
+                                      setLinks((prev) => [...prev]);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-extrabold bg-amber-500 text-white rounded-full cursor-pointer hover:bg-amber-600 transition-colors shadow-sm animate-pulse"
+                                    title="New link! Click to dismiss ticket"
+                                  >
+                                    NEW <X size={10} />
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[10px] text-slate-400 font-normal truncate mt-0.5">
                                 {link.original}
                               </div>
@@ -1270,8 +1136,22 @@ export default function AnalytcsDashboard() {
                               )}
                             </button>
                           </td>
+                          <td className="py-3 px-3 text-center" style={{ minWidth: "120px" }}>
+                            <LabelCell
+                              link={link}
+                              accountLabels={accountLabels}
+                              onLabelsChanged={fetchUrls}
+                            />
+                          </td>
                           <td className="py-3 pl-3 text-right">
                             <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setCampaignModalLink(link)}
+                                title="Add to Campaign"
+                                className="p-1 rounded hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                              >
+                                <Target size={13} />
+                              </button>
                               <button
                                 onClick={() => setShareLink(link)}
                                 title="Share on WhatsApp"
@@ -1314,7 +1194,8 @@ export default function AnalytcsDashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))
+                      );
+                      })
                     )}
                   </tbody>
                 </table>

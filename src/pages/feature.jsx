@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/footer";
@@ -93,6 +94,7 @@ const BLOCKS = [
     body: "Drop in any long URL and get a clean short link in under a second. You do not need an account to make your first one. Sign up only when you want to track it.",
     control: "The slug, the destination, and whether the link is tracked.",
     visualType: "default",
+    mockupImage: "/Mockup1.png",
   },
   {
     flip: true, emphasis: true, highlight: true,
@@ -104,6 +106,7 @@ const BLOCKS = [
     body: "curtio counts each real visitor once. A preview bot and a scanner touching your link will not turn one person into four. You see total clicks, clicks over time, and the channels sending them — all in real time.",
     control: "Nothing to set up. Accurate counting is on by default.",
     visualType: "analytics",
+    mockupImage: "/Mockup2.png",
   },
   {
     flip: false, emphasis: false, highlight: false,
@@ -115,6 +118,7 @@ const BLOCKS = [
     body: "Each short link comes with a downloadable QR code in PNG or SVG. It stays sharp on a billboard and still scans on a business card. It is generated for you, with no extra step.",
     control: "Download format and size.",
     visualType: "default",
+    mockupImage: "/Mockup3.png",
   },
   {
     flip: true, emphasis: false, highlight: false,
@@ -126,6 +130,7 @@ const BLOCKS = [
     body: "Turn curtio.io/x7k2p into curtio.io/spring-sale. Branded links look more trustworthy and earn more clicks. They also tell people what they are about to open before they tap.",
     control: "The back-half of every link.",
     visualType: "default",
+    mockupImage: "/Mockup4.png",
   },
   {
     flip: false, emphasis: false, highlight: false,
@@ -137,6 +142,7 @@ const BLOCKS = [
     body: "Add source, medium, and campaign tags as you create a link, and curtio appends them for you. Your analytics tool sees clean, consistent UTMs every single time.",
     control: "Source, medium, campaign, term, and content.",
     visualType: "default",
+    mockupImage: "/Mockup5.png",
   },
   {
     flip: true, emphasis: false, highlight: false,
@@ -148,6 +154,7 @@ const BLOCKS = [
     body: "Put a password on a link and only the people you give it to get through. Everyone else hits a wall.",
     control: "The password, which you can change anytime.",
     visualType: "default",
+    mockupImage: "/Mockup6.png",
   },
   {
     flip: false, emphasis: false, highlight: false,
@@ -159,6 +166,7 @@ const BLOCKS = [
     body: "Set an expiry date and the link turns itself off when the deadline passes. It is built for limited promos, event signups, and anything with a shelf life.",
     control: "The expiry date and what happens after.",
     visualType: "default",
+    mockupImage: "/Mockup7.png",
   },
   {
     flip: true, emphasis: false, highlight: false,
@@ -170,6 +178,7 @@ const BLOCKS = [
     body: "See clicks by country, shown with flags, and by device type. Spot where your audience really is and what they are using, so you know where to put your effort next.",
     control: "Nothing. It is there the moment your link gets clicks.",
     visualType: "default",
+    mockupImage: "/Mockup8.png",
   },
   {
     flip: false, emphasis: false, highlight: false,
@@ -181,6 +190,7 @@ const BLOCKS = [
     body: "See which platforms send you clicks, whether that is direct, social, search, or a specific site. Find the channel that is actually working and lean into it.",
     control: "Nothing to set up. Referrers are tracked for you.",
     visualType: "default",
+    mockupImage: "/Mockup9.png",
   },
   {
     flip: true, emphasis: false, highlight: false,
@@ -192,6 +202,7 @@ const BLOCKS = [
     body: "Shorten up to 5 links a day with no sign-up at all. When you want tracking and analytics, a free account takes about 30 seconds.",
     control: "Whether to stay a guest or go free.",
     visualType: "default",
+    mockupImage: "/Mockup10.png",
   },
 ];
 
@@ -199,7 +210,7 @@ const BLOCKS = [
    INLINE BROWSER-MOCKUP CARD
 ───────────────────────────────────────────────────────────── */
 function VisualCard({ block }) {
-  const { Icon, tone, browserUrl, caption, emphasis, highlight, visualType } = block;
+  const { Icon, tone, browserUrl, caption, emphasis, highlight, visualType, mockupImage } = block;
 
   const stageStyle = emphasis
     ? { background: "repeating-linear-gradient(45deg,rgba(79,70,229,.05) 0 12px,transparent 12px 24px),linear-gradient(135deg,#EEF2FF,#fff)" }
@@ -236,7 +247,7 @@ function VisualCard({ block }) {
 
       {/* Stage */}
       <div
-        className="relative flex min-h-[300px] items-center justify-center p-7 text-center"
+        className={`relative flex min-h-[20px] md:min-h-[300px] items-center justify-center text-center ${mockupImage ? '' : 'p-7'}`}
         style={stageStyle}
       >
         {/* Ghost watermark */}
@@ -249,13 +260,14 @@ function VisualCard({ block }) {
           </span>
         </span>
 
-        {/* Analytics proof */}
-        {visualType === "analytics" ? (
+        {mockupImage ? (
+          <img src={mockupImage} alt="Mockup" className="relative z-10 w-full h-full object-cover" />
+        ) : visualType === "analytics" ? (
           <div className="relative z-10 flex flex-col gap-3 w-full max-w-[300px]">
             {[
-              { label: "Bots & previews",   val: "4 clicks", us: false },
-              { label: "Counted by others", val: "4",        us: false },
-              { label: "Counted by curtio", val: "1",        us: true  },
+              { label: "Bots & previews", val: "4 clicks", us: false },
+              { label: "Counted by others", val: "4", us: false },
+              { label: "Counted by curtio", val: "1", us: true },
             ].map(({ label, val, us }) => (
               <div
                 key={label}
@@ -289,10 +301,46 @@ function VisualCard({ block }) {
    MAIN PAGE
 ───────────────────────────────────────────────────────────── */
 export default function Features() {
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  useEffect(() => {
+    const imagesToLoad = BLOCKS.map(b => b.mockupImage).filter(Boolean);
+    if (imagesToLoad.length === 0) {
+      setImagesLoaded(true);
+      return;
+    }
+
+    let loadedCount = 0;
+    imagesToLoad.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === imagesToLoad.length) {
+          setImagesLoaded(true);
+        }
+      };
+    });
+  }, []);
+
+  if (!imagesLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="py-16 text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-3" />
+          <div className="text-slate-500 text-sm font-medium">
+            Loading features...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Navbar />
 
+      <main id="main">
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section className="relative overflow-hidden pt-[152px] pb-[76px] text-center">
         <div
@@ -342,11 +390,10 @@ export default function Features() {
             {BLOCKS.map((block, i) => (
               <article
                 key={i}
-                className={`grid items-center gap-16 lg:grid-cols-2 ${
-                  block.flip
-                    ? "[&>*:first-child]:lg:order-2 [&>*:last-child]:lg:order-1"
-                    : ""
-                }`}
+                className={`grid items-center gap-16 lg:grid-cols-2 ${block.flip
+                  ? "[&>*:first-child]:lg:order-2 [&>*:last-child]:lg:order-1"
+                  : ""
+                  }`}
               >
                 {/* Visual */}
                 <VisualCard block={block} />
@@ -396,6 +443,7 @@ export default function Features() {
         buttonText="Get started free"
         buttonLink="/register"
       />
+      </main>
 
       <Footer />
     </>

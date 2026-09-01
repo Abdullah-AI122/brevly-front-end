@@ -24,3 +24,38 @@
 .font-space {
   font-family: "Space Grotesk", sans-serif;
 }
+
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper *:focus {
+  outline: none !important;
+}
+
+/* ── Custom Scrollbar System ── */
+/* WebKit browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c7d2fe;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6366f1;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c7d2fe #f1f5f9;
+}
+

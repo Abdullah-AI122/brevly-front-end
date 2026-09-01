@@ -9,13 +9,11 @@ const Google_Client_ID = import.meta.env.VITE_CLIENT_ID;
 if (!Google_Client_ID) {
   console.warn("⚠️ VITE_CLIENT_ID is undefined! Google Auth popup/modal will NOT open.");
 } else {
-  
+
 }
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <GoogleOAuthProvider clientId={Google_Client_ID || ""}>
-      <App />
-    </GoogleOAuthProvider>
-  </StrictMode>,
+  <GoogleOAuthProvider clientId={Google_Client_ID || ""}>
+    <App />
+  </GoogleOAuthProvider>
 );

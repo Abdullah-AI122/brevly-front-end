@@ -4,8 +4,9 @@ import { Zap, Eye, EyeOff, Mail, Lock, User, ShieldCheck } from 'lucide-react'
 import { useGoogleLogin } from "@react-oauth/google"
 import { syncPendingUrl } from '../lib/sync'
 import { FaBoltLightning, FaChartArea, FaLink } from 'react-icons/fa6'
+import env from "../../Config/env";
 
-const API = `${import.meta.env.VITE_API_BASE_URL}/auth`;
+const API = `${env.BACKEND_URL}/auth`;
 
 
 
@@ -62,6 +63,10 @@ export default function Register() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    if (!form.password || form.password.length < 8) {
+      setError('Password must be at least 8 characters long.')
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch(`${API}/register`, {
@@ -85,11 +90,34 @@ export default function Register() {
 
   /* ── OTP digit change ── */
   function handleOtpChange(index, value) {
-    if (!/^\d?$/.test(value)) return
+    const digits = value.replace(/\D/g, '')
+    if (!digits) {
+      if (value === '') {
+        const next = [...otpDigits]
+        next[index] = ''
+        setOtpDigits(next)
+      }
+      return
+    }
+
+    // Handles a full code pasted or autofilled into a single box.
+    if (digits.length > 1) {
+      const next = [...otpDigits]
+      let i = index
+      for (const digit of digits) {
+        if (i > 5) break
+        next[i] = digit
+        i++
+      }
+      setOtpDigits(next)
+      otpRefs.current[Math.min(i, 5)]?.focus()
+      return
+    }
+
     const next = [...otpDigits]
-    next[index] = value
+    next[index] = digits
     setOtpDigits(next)
-    if (value && index < 5) {
+    if (index < 5) {
       otpRefs.current[index + 1]?.focus()
     }
   }
@@ -211,7 +239,7 @@ export default function Register() {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <Zap size={16} className="text-white" fill="white" />
             </div>
-            <span className="text-xl font-extrabold text-slate-900">Brevly</span>
+            <span className="text-xl font-extrabold text-slate-900">Curtio</span>
           </Link>
 
           {/* ─── STEP 1: Registration Form ─── */}
@@ -303,13 +331,29 @@ export default function Register() {
                     id="agree"
                     checked={agreed}
                     onChange={e => setAgreed(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   <label htmlFor="agree" className="text-sm text-slate-600 leading-snug">
                     I agree to the{' '}
-                    <span className="text-indigo-600 font-medium cursor-pointer hover:underline">Terms of Service</span>
+                    <Link
+                      to="/terms-of-service"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="text-indigo-600 font-medium cursor-pointer hover:underline"
+                    >
+                      Terms of Service
+                    </Link>
                     {' '}and{' '}
-                    <span className="text-indigo-600 font-medium cursor-pointer hover:underline">Privacy Policy</span>
+                    <Link
+                      to="/privacy-policy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="text-indigo-600 font-medium cursor-pointer hover:underline"
+                    >
+                      Privacy Policy
+                    </Link>
                   </label>
                 </div>
 
@@ -323,7 +367,7 @@ export default function Register() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                     </svg>
-                  ) : 'Create Account & Send OTP'}
+                  ) : 'Create Account'}
                 </button>
               </form>
 
@@ -393,7 +437,9 @@ export default function Register() {
                       ref={el => (otpRefs.current[i] = el)}
                       type="text"
                       inputMode="numeric"
-                      maxLength={1}
+                      autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                      aria-label={`Digit ${i + 1} of 6`}
+                      maxLength={i === 0 ? 6 : 1}
                       value={digit}
                       onChange={e => handleOtpChange(i, e.target.value)}
                       onKeyDown={e => handleOtpKeyDown(i, e)}
